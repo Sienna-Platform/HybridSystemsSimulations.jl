@@ -905,7 +905,7 @@ function _add_constraints_cyclingcharge!(
         #        param_value
         #    )
         #else
-        E_max = PSY.get_state_of_charge_limits(storage).max
+        E_max = PSY.get_storage_level_limits(storage).max
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -967,7 +967,7 @@ function _add_constraints_cyclingcharge_withreserves!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_state_of_charge_limits(storage).max
+            E_max = PSY.get_storage_level_limits(storage).max
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1005,7 +1005,7 @@ function _add_constraints_cyclingcharge_decisionmodel!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_state_of_charge_limits(storage).max
+        E_max = PSY.get_storage_level_limits(storage).max
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1069,7 +1069,7 @@ function _add_constraints_cyclingdischarge!(
         #        sum(discharge_var[ci_name, :]) <= param_value
         #    )
         #else
-        E_max = PSY.get_state_of_charge_limits(storage).max
+        E_max = PSY.get_storage_level_limits(storage).max
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1132,7 +1132,7 @@ function _add_constraints_cyclingdischarge_withreserves!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_state_of_charge_limits(storage).max
+            E_max = PSY.get_storage_level_limits(storage).max
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1171,7 +1171,7 @@ function _add_constraints_cyclingdischarge_decisionmodel!(
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
 
-        E_max = PSY.get_state_of_charge_limits(storage).max
+        E_max = PSY.get_storage_level_limits(storage).max
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -2818,7 +2818,7 @@ function add_constraints!(
     for dev in devices
         n = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        e_max_ds = PSY.get_state_of_charge_limits(storage).max
+        e_max_ds = PSY.get_storage_level_limits(storage).max
         for t in time_steps
             assignment_constraint[n, t] =
                 JuMP.@constraint(jm, k_variable[n, t] == primal_var[n, t] - e_max_ds)
@@ -3334,7 +3334,7 @@ function add_constraints!(
     for dev in devices
         name = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        _, E_max = PSY.get_state_of_charge_limits(storage)
+        _, E_max = PSY.get_storage_level_limits(storage)
         η_ch = storage.efficiency.in * Δt_RT
         assignment_constraint[name] = JuMP.@constraint(
             jm,
@@ -3371,7 +3371,7 @@ function add_constraints!(
     for dev in devices
         name = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        _, E_max = PSY.get_state_of_charge_limits(storage)
+        _, E_max = PSY.get_storage_level_limits(storage)
         η_ch = storage.efficiency.in * Δt_RT
         assignment_constraint[name] = JuMP.@constraint(
             jm,

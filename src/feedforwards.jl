@@ -162,7 +162,7 @@ function PSI.add_feedforward_constraints!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_state_of_charge_limits(storage).max
+            E_max = PSY.get_storage_level_limits(storage).max
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -197,20 +197,20 @@ function PSI.add_feedforward_constraints!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_state_of_charge_limits(storage).max
+        E_max = PSY.get_storage_level_limits(storage).max
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
         if PSI.built_for_recurrent_solves(container)
             param_value =
-                PSI.get_parameter_array(container, CyclingChargeLimitParameter(), D)[ci_name]
+                PSI.get_parameter_array(container, CyclingChargeLimitParameter(), D)[ci_name, time_steps[end]]
             con_cycling_ch[ci_name] = JuMP.@constraint(
                 PSI.get_jump_model(container),
                 efficiency.in * fraction_of_hour * sum(charge_var[ci_name, :]) <=
                 param_value
             )
         else
-            E_max = PSY.get_state_of_charge_limits(storage).max
+            E_max = PSY.get_storage_level_limits(storage).max
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -266,7 +266,7 @@ function PSI.add_feedforward_constraints!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_state_of_charge_limits(storage).max
+            E_max = PSY.get_storage_level_limits(storage).max
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -301,13 +301,13 @@ function PSI.add_feedforward_constraints!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_state_of_charge_limits(storage).max
+        E_max = PSY.get_storage_level_limits(storage).max
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
         if PSI.built_for_recurrent_solves(container)
             param_value =
-                PSI.get_parameter_array(container, CyclingDischargeLimitParameter(), D)[ci_name]
+                PSI.get_parameter_array(container, CyclingDischargeLimitParameter(), D)[ci_name, time_steps[end]]
             con_cycling_ds[ci_name] = JuMP.@constraint(
                 PSI.get_jump_model(container),
                 (1.0 / efficiency.out) *
@@ -315,7 +315,7 @@ function PSI.add_feedforward_constraints!(
                 sum(discharge_var[ci_name, :]) <= param_value
             )
         else
-            E_max = PSY.get_state_of_charge_limits(storage).max
+            E_max = PSY.get_storage_level_limits(storage).max
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
