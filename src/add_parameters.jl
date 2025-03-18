@@ -16,7 +16,7 @@ function _add_time_series_parameters(
     initial_values = Dict{String, AbstractArray}()
     for device in devices
         push!(device_names, PSY.get_name(device))
-        ts_uuid = PSI.get_time_series_uuid(ts_type, device, ts_name)
+        ts_uuid = string(IS.get_time_series_uuid(ts_type, device, ts_name))
         if !(ts_uuid in keys(initial_values))
             initial_values[ts_uuid] =
                 PSI.get_time_series_initial_values!(container, ts_type, device, ts_name)
@@ -50,7 +50,7 @@ function _add_time_series_parameters(
         PSI.add_component_name!(
             PSI.get_attributes(param_container),
             name,
-            PSI.get_time_series_uuid(ts_type, device, ts_name),
+            string(IS.get_time_series_uuid(ts_type, device, ts_name)),
         )
     end
     return
