@@ -9,11 +9,14 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
     # Resolution
-    RT_resolution = PSY.get_time_series_resolution(sys)
+    RT_resolution = PSY.get_time_series_resolutions(sys)[1]
     Δt_DA = 1.0
     Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
-    PSI.init_optimization_container!(container, PSI.CopperPlatePowerModel, sys)
+    device_model = PSI.get_model(PSI.get_template(decision_model), PSY.HybridSystem)
+    device_formulation = PSI.get_formulation(device_model)
+    network_model = PSI.get_network_model(PSI.get_template(decision_model))
+    PSI.init_optimization_container!(container, network_model, sys)
     PSI.init_model_store_params!(decision_model)
 
     # Create Multiple Time Horizons based on ext horizons
@@ -63,10 +66,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             )
         end
     end
-
-    device_model = PSI.get_model(PSI.get_template(decision_model), PSY.HybridSystem)
-    device_formulation = PSI.get_formulation(device_model)
-    network_model = PSI.get_network_model(PSI.get_template(decision_model))
 
     ###############################
     ######## Variables ############
@@ -839,18 +838,24 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             # Workaround to add ThermalCost with a Linear Cost Since the model doesn't include PWL cost
             t_gen = dev.thermal_unit
             three_cost = PSY.get_operation_cost(t_gen)
-            first_part = three_cost.variable[1]
-            second_part = three_cost.variable[2]
-            slope = (second_part[1] - first_part[1]) / (second_part[2] - first_part[2]) # $/MWh
-            fix_cost = three_cost.fixed # $/h
-            C_th_var = slope * 100.0 # Multiply by 100 to transform to $/pu
+            variable_cost = three_cost.variable
+            value_curve = variable_cost.value_curve
+            fuel_cost = variable_cost.fuel_cost
+            slope = sum(PSY.get_slopes(value_curve)) / length(PSY.get_slopes(value_curve))
+            # fix_cost = variable_cost.fixed # $/h
+            C_th_var = fuel_cost * slope * 100.0 # Multiply by 100 to transform to $/pu
             lin_cost_p_th = Δt_RT * C_th_var * p_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_th)
         end
         if !isnothing(dev.storage)
-            VOM = dev.storage.operation_cost.variable.cost
-            lin_cost_p_ch = 100.0 * Δt_RT * VOM * p_ch[name, t]
-            lin_cost_p_ds = 100.0 * Δt_RT * VOM * p_ds[name, t]
+            VOM_charge = PSY.get_proportional_term(
+                dev.storage.operation_cost.charge_variable_cost.value_curve,
+            )
+            VOM_discharge = PSY.get_proportional_term(
+                dev.storage.operation_cost.discharge_variable_cost.value_curve,
+            )
+            lin_cost_p_ch = 100.0 * Δt_RT * VOM_charge * p_ch[name, t]
+            lin_cost_p_ds = 100.0 * Δt_RT * VOM_discharge * p_ds[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ch)
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ds)
         end
