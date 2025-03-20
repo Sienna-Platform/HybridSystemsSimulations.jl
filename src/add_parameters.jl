@@ -246,8 +246,11 @@ end
 function PSI.update_parameter_values!(
     model::PSI.DecisionModel{T},
     key::PSI.ParameterKey{U, PSY.HybridSystem},
-    ::PSI.DatasetContainer{PSI.InMemoryDataset},
-) where {T <: HybridDecisionProblem, U <: Union{DayAheadEnergyPrice, RealTimeEnergyPrice}}
+    ::PSI.SimulationState,
+) where {
+    T <: HybridDecisionProblem,
+    U <: Union{DayAheadEnergyPrice, RealTimeEnergyPrice, AncillaryServicePrice},
+}
     container = PSI.get_optimization_container(model)
     @assert !PSI.is_synchronized(container)
     _update_parameter_values!(model, key)
@@ -263,7 +266,10 @@ function _update_parameter_values!(
     parameter_array = PSI.get_parameter_array(container, key)
     parameter_multiplier = PSI.get_parameter_multiplier_array(container, key)
     attributes = PSI.get_parameter_attributes(container, key)
-    components = PSI.get_available_components(PSY.HybridSystem, PSI.get_system(model))
+    template = PSI.get_template(model)
+    device_models = PSI.get_device_models(template)
+    device_model = device_models[:HybridSystem]
+    components = PSI.get_available_components(device_model, PSI.get_system(model))
     resolution = PSI.get_resolution(container)
     dt = Dates.value(Dates.Second(resolution)) / PSI.SECONDS_IN_HOUR
     for component in components
@@ -302,7 +308,10 @@ function _update_parameter_values!(
     dt = Dates.value(Dates.Second(resolution)) / PSI.SECONDS_IN_HOUR
     parameter_array = PSI.get_parameter_array(container, key)
     attributes = PSI.get_parameter_attributes(container, key)
-    components = PSI.get_available_components(PSY.HybridSystem, PSI.get_system(model))
+    template = PSI.get_template(model)
+    device_models = PSI.get_device_models(template)
+    device_model = device_models[:HybridSystem]
+    components = PSI.get_available_components(device_model, PSI.get_system(model))
     variable =
         PSI.get_variable(container, PSI.get_variable_type(attributes)(), PSY.HybridSystem)
     parameter_multiplier = PSI.get_parameter_multiplier_array(container, key)
@@ -331,6 +340,54 @@ function _update_parameter_values!(
                 component,
                 t,
             )
+        end
+    end
+    return
+end
+
+function _update_parameter_values!(
+    model::PSI.DecisionModel{T},
+    key::PSI.ParameterKey{AncillaryServicePrice, PSY.HybridSystem},
+) where {T <: HybridDecisionProblem}
+    initial_forecast_time = PSI.get_current_time(model)
+    container = PSI.get_optimization_container(model)
+    parameter_array = PSI.get_parameter_array(container, key)
+    parameter_multiplier = PSI.get_parameter_multiplier_array(container, key)
+    attributes = PSI.get_parameter_attributes(container, key)
+    template = PSI.get_template(model)
+    device_models = PSI.get_device_models(template)
+    device_model = device_models[:HybridSystem]
+    components = PSI.get_available_components(device_model, PSI.get_system(model))
+    resolution = PSI.get_resolution(container)
+    dt = Dates.value(Dates.Second(resolution)) / PSI.SECONDS_IN_HOUR
+    meta = key.meta
+    service_name = join(split(meta, "_")[2:end], "_")
+    services = Set()
+    for d in components
+        union!(services, PSY.get_services(d))
+    end
+    service = first(filter(x -> PSY.get_name(x) == service_name, services))
+    variable = PSI.get_variable(
+        container,
+        PSI.get_variable_type(attributes)(),
+        typeof(service),
+        service_name,
+    )
+    for component in components
+        ext = PSY.get_ext(component)
+        horizon = ext["horizon_DA"]
+        bus_name = PSY.get_name(PSY.get_bus(component))
+        ix = PSI.find_timestamp_index(
+            ext["λ_$(service_name)"][!, "DateTime"],
+            initial_forecast_time,
+        )
+        λ = ext["λ_$(service_name)"][!, bus_name][ix:(ix + horizon - 1)]
+        name = PSY.get_name(component)
+        for (t, value) in enumerate(λ)
+            # Since the DA variables are hourly, this will revert the dt multiplication
+            PSI._set_param_value!(parameter_array, value * 1.0 * 100.0, name, t)
+            hy_cost = variable[name, t] * value * 1.0 * 100.0
+            PSI.add_to_objective_variant_expression!(container, hy_cost)
         end
     end
     return
