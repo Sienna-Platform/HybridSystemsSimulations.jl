@@ -141,7 +141,9 @@ PSI.get_variable_upper_bound(
     ::PSI.EnergyVariable,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_storage_level_limits(PSY.get_storage(d)).max
+) =
+    PSY.get_storage_level_limits(PSY.get_storage(d)).max *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 PSI.get_variable_upper_bound(
     ::PSI.OnVariable,
@@ -193,7 +195,9 @@ PSI.get_variable_lower_bound(
     ::PSI.EnergyVariable,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_storage_level_limits(PSY.get_storage(d)).min
+) =
+    PSY.get_storage_level_limits(PSY.get_storage(d)).min *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 PSI.get_variable_lower_bound(
     ::PSI.OnVariable,
