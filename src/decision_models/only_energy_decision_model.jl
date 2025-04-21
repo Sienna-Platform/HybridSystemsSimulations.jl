@@ -526,7 +526,8 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
             η_ch = storage.efficiency.in
             η_ds = storage.efficiency.out
             inv_η_ds = 1.0 / η_ds
-            E_min, E_max = PSY.get_state_of_charge_limits(storage)
+            _, E_max = PSY.get_storage_level_limits(storage)
+            E_max = E_max * PSY.get_storage_capacity(storage)
             constraint_cycling_charge[name] = JuMP.@constraint(
                 model,
                 inv_η_ds * Δt_RT * sum(p_ds[name, t] for t in T_rt) <= Cycles * E_max
