@@ -25,7 +25,6 @@ LOG_LEVELS = Dict(
 )
 
 # Constants
-# Constants
 import PowerSystems as PSY
 import PowerSimulations as PSI
 import PowerSystemCaseBuilder as PSB
