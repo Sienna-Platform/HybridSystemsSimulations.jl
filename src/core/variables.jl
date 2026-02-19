@@ -1,8 +1,40 @@
 ### Define Variables using PSI.VariableType
 # Energy Bids
+"""
+    EnergyDABidOut
+
+Variable type for day-ahead energy offer (generating power) at the PCC.
+
+Docs abbreviation: ``e^{\\text{out}}_{\\text{DA},t} \\in [0, P_{\\max,\\text{pcc}}]`` [MW].
+"""
 struct EnergyDABidOut <: PSI.VariableType end
+
+"""
+    EnergyDABidIn
+
+Variable type for day-ahead energy bid (consuming power) at the PCC.
+
+Docs abbreviation: ``e^{\\text{in}}_{\\text{DA},t} \\in [0, P_{\\max,\\text{pcc}}]`` [MW].
+"""
 struct EnergyDABidIn <: PSI.VariableType end
+
+"""
+    EnergyRTBidOut
+
+Variable type for real-time energy offer at the PCC.
+
+Docs abbreviation: ``e^{\\text{out}}_{\\text{RT},t}``. Net RT position with DA locked
+is used in the merchant profit expression (e.g. DART spread).
+"""
 struct EnergyRTBidOut <: PSI.VariableType end
+
+"""
+    EnergyRTBidIn
+
+Variable type for real-time energy bid at the PCC.
+
+Docs abbreviation: ``e^{\\text{in}}_{\\text{RT},t}``.
+"""
 struct EnergyRTBidIn <: PSI.VariableType end
 
 # Energy Asset Bids
@@ -12,7 +44,24 @@ struct EnergyBatteryChargeBid <: PSI.VariableType end
 struct EnergyBatteryDischargeBid <: PSI.VariableType end
 
 # AS Total DA Bids
+"""
+    BidReserveVariableOut
+
+Variable type for day-ahead ancillary service offer (generation direction) for the
+hybrid at the PCC.
+
+Docs abbreviation: ``sb^{\\text{out}}_{p,t} \\in [0, F_p P_{\\max,\\text{pcc}}]`` for product ``p``.
+"""
 struct BidReserveVariableOut <: PSI.VariableType end
+
+"""
+    BidReserveVariableIn
+
+Variable type for day-ahead ancillary service bid (consumption direction) for the
+hybrid at the PCC.
+
+Docs abbreviation: ``sb^{\\text{in}}_{p,t} \\in [0, F_p P_{\\max,\\text{pcc}}]`` for product ``p``.
+"""
 struct BidReserveVariableIn <: PSI.VariableType end
 
 # Component Variables
@@ -33,8 +82,29 @@ struct DischargeRegularizationVariable <: BatteryRegularizationVariable end
 # AS Variable for Hybrid
 abstract type ReserveVariableType <: PSI.VariableType end
 abstract type AssetReserveVariableType <: ReserveVariableType end
+
+"""
+    ReserveVariableOut
+
+Variable type for ancillary service reserve quantity in the "out" (generation)
+direction allocated to the hybrid's internal assets (``sb^{\\text{th}}``, ``sb^{\\text{re}}``, ``sb^{\\text{ds}}``, ``sb^{\\text{ch}}``).
+"""
 struct ReserveVariableOut <: AssetReserveVariableType end
+
+"""
+    ReserveVariableIn
+
+Variable type for ancillary service reserve quantity in the "in" (consumption)
+direction allocated to the hybrid's internal assets.
+"""
 struct ReserveVariableIn <: AssetReserveVariableType end
+
+"""
+    TotalReserve
+
+Auxiliary variable type for the total reserve quantity (sum of component reserves)
+at the PCC. Used in reserve balance constraints; not written to results by default.
+"""
 struct TotalReserve <: AssetReserveVariableType end
 struct SlackReserveUp <: PSI.VariableType end
 struct SlackReserveDown <: PSI.VariableType end

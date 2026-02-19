@@ -79,31 +79,155 @@ struct FeedForwardCyclingDischargeConstraint <: PSI.ConstraintType end
 ### Dual Optimality Conditions Constraints ###
 ##############################################
 # Names track the variable types in variables.jl
+"""
+    OptConditionThermalPower
+
+Constraint enforcing KKT stationarity for thermal power in the merchant (lower-level)
+model: links dual of thermal limits (``\\mu^{\\text{ThUb}}``, ``\\mu^{\\text{ThLb}}``) to the thermal power variable.
+Used in bilevel/MPEC formulations.
+"""
 struct OptConditionThermalPower <: PSI.ConstraintType end
+
+"""
+    OptConditionRenewablePower
+
+Constraint enforcing KKT stationarity for renewable power (``p_{\\text{re},t}``) in the merchant
+model; ties duals of renewable limit (``\\mu^{\\text{ReUb}}``, ``\\mu^{\\text{ReLb}}``) to the renewable power variable.
+"""
 struct OptConditionRenewablePower <: PSI.ConstraintType end
+
+"""
+    OptConditionBatteryCharge
+
+Constraint enforcing KKT stationarity for storage charging (``p_{\\text{ch},t}``) in the merchant
+model; involves duals ``\\mu^{\\text{ChUb}}``, ``\\mu^{\\text{ChLb}}`` and charge limits.
+"""
 struct OptConditionBatteryCharge <: PSI.ConstraintType end
+
+"""
+    OptConditionBatteryDischarge
+
+Constraint enforcing KKT stationarity for storage discharging (``p_{\\text{ds},t}``) in the merchant
+model; involves duals ``\\mu^{\\text{DsUb}}``, ``\\mu^{\\text{DsLb}}``.
+"""
 struct OptConditionBatteryDischarge <: PSI.ConstraintType end
-# EnergyVariable is defined in PSI
+
+"""
+    OptConditionEnergyVariable
+
+Constraint enforcing KKT stationarity for the energy variable at the PCC in the
+merchant model. #TODO DOCS
+"""
 struct OptConditionEnergyVariable <: PSI.ConstraintType end
 
 ###############################################
 ##### Complementaty Slackness Constraints #####
 ###############################################
 # Names track the constraint types and their Meta Ub and Lb
+"""
+    ComplementarySlacknessEnergyAssetBalanceUb
+
+Complementary slackness constraint (upper bound) for the energy asset balance
+equation in the merchant model; used in MPEC/bilevel reformulation.
+"""
 struct ComplementarySlacknessEnergyAssetBalanceUb <: PSI.ConstraintType end
+
+"""
+    ComplementarySlacknessEnergyAssetBalanceLb
+
+Complementary slackness constraint (lower bound) for the energy asset balance.
+"""
 struct ComplementarySlacknessEnergyAssetBalanceLb <: PSI.ConstraintType end
+
 struct ComplementarySlacknessThermalOnVariableUb <: PSI.ConstraintType end
 struct ComplementarySlacknessThermalOnVariableLb <: PSI.ConstraintType end
+
+"""
+    ComplementarySlacknessRenewableActivePowerLimitConstraintUb
+
+Complementary slackness (upper bound) for renewable active power limit (``p_{\\text{re},t} \\leq P^*_{\\text{re},t}``).
+"""
 struct ComplementarySlacknessRenewableActivePowerLimitConstraintUb <: PSI.ConstraintType end
+
+"""
+    ComplementarySlacknessRenewableActivePowerLimitConstraintLb
+
+Complementary slackness (lower bound) for renewable active power limit.
+"""
 struct ComplementarySlacknessRenewableActivePowerLimitConstraintLb <: PSI.ConstraintType end
+
+"""
+    ComplementarySlacknessBatteryStatusDischargeOnUb
+
+Complementary slackness (upper bound) for battery status discharge-on constraint (``ss_{\\text{st},t}``).
+"""
 struct ComplementarySlacknessBatteryStatusDischargeOnUb <: PSI.ConstraintType end
+"""
+    ComplementarySlacknessBatteryStatusDischargeOnLb
+
+Complementary slackness (lower bound) for battery status discharge-on constraint.
+"""
 struct ComplementarySlacknessBatteryStatusDischargeOnLb <: PSI.ConstraintType end
+
+"""
+    ComplementarySlacknessBatteryStatusChargeOnUb
+
+Complementary slackness (upper bound) for battery status charge-on constraint.
+"""
 struct ComplementarySlacknessBatteryStatusChargeOnUb <: PSI.ConstraintType end
+"""
+    ComplementarySlacknessBatteryStatusChargeOnLb
+
+Complementary slackness (lower bound) for battery status charge-on constraint.
+"""
 struct ComplementarySlacknessBatteryStatusChargeOnLb <: PSI.ConstraintType end
+
+"""
+    ComplementarySlacknessBatteryBalanceUb
+
+Complementary slackness (upper bound) for storage energy balance (``e_{\\text{st},t}``).
+"""
 struct ComplementarySlacknessBatteryBalanceUb <: PSI.ConstraintType end
+"""
+    ComplementarySlacknessBatteryBalanceLb
+
+Complementary slackness (lower bound) for storage energy balance.
+"""
 struct ComplementarySlacknessBatteryBalanceLb <: PSI.ConstraintType end
+
+"""
+    ComplentarySlacknessCyclingCharge
+
+Complementary slackness for the charging cycle limit (``c_{\\text{ch}}^-``); note spelling
+"Complentary" is kept for API compatibility.
+"""
 struct ComplentarySlacknessCyclingCharge <: PSI.ConstraintType end
+
+"""
+    ComplentarySlacknessCyclingDischarge
+
+Complementary slackness for the discharging cycle limit (``c_{\\text{ds}}^-``).
+"""
 struct ComplentarySlacknessCyclingDischarge <: PSI.ConstraintType end
+
+"""
+    ComplementarySlacknessEnergyLimitUb
+
+Complementary slackness (upper bound) for storage energy capacity (``e_{\\text{st},t} \\leq E_{\\max,\\text{st}}``).
+"""
 struct ComplementarySlacknessEnergyLimitUb <: PSI.ConstraintType end
+"""
+    ComplementarySlacknessEnergyLimitLb
+
+Complementary slackness (lower bound) for storage energy capacity.
+"""
 struct ComplementarySlacknessEnergyLimitLb <: PSI.ConstraintType end
+
+"""
+    StrongDualityCut
+
+Constraint that enforces strong duality for the merchant (lower-level) problem
+in a bilevel formulation: objective value equals dual objective (or equivalent
+cut), so that the lower level is replaced by its KKT conditions.
+"""
 struct StrongDualityCut <: PSI.ConstraintType end

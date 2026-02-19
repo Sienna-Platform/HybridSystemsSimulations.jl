@@ -1,3 +1,13 @@
+"""
+    CyclingChargeLimitFeedforward
+
+Feedforward that enforces a cumulative charging cycle limit on the hybrid's storage
+over the simulation. The constraint is ``\\eta_{\\text{ch}} \\Delta t \\sum (p_{\\text{ch}} + \\text{served\\_reg\\_down} - \\text{served\\_reg\\_up}) \\leq \\text{limit}``,
+where the limit is from [`CyclingChargeLimitParameter`](@ref) in recurrent solves or
+``\\text{cycles\\_in\\_horizon} \\times E_{\\max}`` otherwise. Use with PowerSimulations' `add_feedforward!` in a
+[`PowerSimulations.DeviceModel`](@extref PowerSimulations.DeviceModel) for
+[`HybridDispatchWithReserves`](@ref) or [`HybridEnergyOnlyDispatch`](@ref).
+"""
 struct CyclingChargeLimitFeedforward <: PSI.AbstractAffectFeedforward
     optimization_container_key::PSI.OptimizationContainerKey
     affected_values::Vector{<:PSI.OptimizationContainerKey}
@@ -33,6 +43,14 @@ PSI.get_default_parameter_type(::CyclingChargeLimitFeedforward, _) =
 PSI.get_optimization_container_key(ff::CyclingChargeLimitFeedforward) =
     ff.optimization_container_key
 
+"""
+    CyclingDischargeLimitFeedforward
+
+Feedforward that enforces a cumulative discharging cycle limit on the hybrid's storage:
+``(1/\\eta_{\\text{ds}}) \\Delta t \\sum (p_{\\text{ds}} + \\text{served\\_reg\\_up} - \\text{served\\_reg\\_down}) \\leq \\text{limit}``. The limit comes from
+[`CyclingDischargeLimitParameter`](@ref) in recurrent runs. See
+[`CyclingChargeLimitFeedforward`](@ref) for usage pattern.
+"""
 struct CyclingDischargeLimitFeedforward <: PSI.AbstractAffectFeedforward
     optimization_container_key::PSI.OptimizationContainerKey
     affected_values::Vector{<:PSI.OptimizationContainerKey}
