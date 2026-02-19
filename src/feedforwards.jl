@@ -2,9 +2,9 @@
     CyclingChargeLimitFeedforward
 
 Feedforward that enforces a cumulative charging cycle limit on the hybrid's storage
-over the simulation. The constraint is ``\\eta_{\\text{ch}} \\Delta t \\sum (p_{\\text{ch}} + \\text{served\\_reg\\_down} - \\text{served\\_reg\\_up}) \\leq \\text{limit}``,
-where the limit is from [`CyclingChargeLimitParameter`](@ref) in recurrent solves or
-``\\text{cycles\\_in\\_horizon} \\times E_{\\max}`` otherwise. Use with PowerSimulations' `add_feedforward!` in a
+over the simulation. The constraint is ``\\eta_{\\text{ch}} \\Delta t \\sum_t (p_{\\text{ch},t} + s^{\\text{down}}_{\\text{reg},t} - s^{\\text{up}}_{\\text{reg},t}) \\leq \\text{limit}``,
+where ``s^{\\text{up}}_{\\text{reg},t}`` and ``s^{\\text{down}}_{\\text{reg},t}`` denote served reserve (up/down). The limit is from [`CyclingChargeLimitParameter`](@ref) in recurrent solves or
+``C_{\\text{horizon}} \\times E_{\\max,\\text{st}}`` otherwise. Use with PowerSimulations' `add_feedforward!` in a
 [`PowerSimulations.DeviceModel`](@extref PowerSimulations.DeviceModel) for
 [`HybridDispatchWithReserves`](@ref) or [`HybridEnergyOnlyDispatch`](@ref).
 """
@@ -47,7 +47,8 @@ PSI.get_optimization_container_key(ff::CyclingChargeLimitFeedforward) =
     CyclingDischargeLimitFeedforward
 
 Feedforward that enforces a cumulative discharging cycle limit on the hybrid's storage:
-``(1/\\eta_{\\text{ds}}) \\Delta t \\sum (p_{\\text{ds}} + \\text{served\\_reg\\_up} - \\text{served\\_reg\\_down}) \\leq \\text{limit}``. The limit comes from
+``(1/\\eta_{\\text{ds}}) \\Delta t \\sum_t (p_{\\text{ds},t} + s^{\\text{up}}_{\\text{reg},t} - s^{\\text{down}}_{\\text{reg},t}) \\leq \\text{limit}``,
+where ``s^{\\text{up}}_{\\text{reg},t}`` and ``s^{\\text{down}}_{\\text{reg},t}`` denote served reserve (up/down). The limit comes from
 [`CyclingDischargeLimitParameter`](@ref) in recurrent runs. See
 [`CyclingChargeLimitFeedforward`](@ref) for usage pattern.
 """

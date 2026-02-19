@@ -22,7 +22,7 @@ struct MerchantHybridEnergyFixedDA <: HybridDecisionProblem end
 
 Decision problem for a merchant hybrid that co-optimizes energy and ancillary services
 in day-ahead and real-time markets. Maximizes ``d'y - c_h' x`` (revenue from bids/offers minus operating cost) subject to
-market and asset constraints; AS are committed in DA and fulfilled by internal asset
+market and asset constraints; ancillary services are committed in DA and fulfilled by internal asset
 allocation in RT.
 """
 struct MerchantHybridCooptimizerCase <: HybridDecisionProblem end

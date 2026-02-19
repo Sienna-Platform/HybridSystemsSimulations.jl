@@ -3,7 +3,7 @@
 """
     EnergyDABidOut
 
-Variable type for day-ahead energy offer (generating power) at the PCC.
+Variable type for day-ahead energy offer (generating power) at the point of common coupling (PCC).
 
 Docs abbreviation: ``e^{\\text{out}}_{\\text{DA},t} \\in [0, P_{\\max,\\text{pcc}}]`` [MW].
 """
@@ -12,7 +12,7 @@ struct EnergyDABidOut <: PSI.VariableType end
 """
     EnergyDABidIn
 
-Variable type for day-ahead energy bid (consuming power) at the PCC.
+Variable type for day-ahead energy bid (consuming power) at the point of common coupling (PCC).
 
 Docs abbreviation: ``e^{\\text{in}}_{\\text{DA},t} \\in [0, P_{\\max,\\text{pcc}}]`` [MW].
 """
@@ -21,7 +21,7 @@ struct EnergyDABidIn <: PSI.VariableType end
 """
     EnergyRTBidOut
 
-Variable type for real-time energy offer at the PCC.
+Variable type for real-time energy offer at the point of common coupling (PCC).
 
 Docs abbreviation: ``e^{\\text{out}}_{\\text{RT},t}``. Net RT position with DA locked
 is used in the merchant profit expression (e.g. DART spread).
@@ -31,7 +31,7 @@ struct EnergyRTBidOut <: PSI.VariableType end
 """
     EnergyRTBidIn
 
-Variable type for real-time energy bid at the PCC.
+Variable type for real-time energy bid at the point of common coupling (PCC).
 
 Docs abbreviation: ``e^{\\text{in}}_{\\text{RT},t}``.
 """
@@ -43,12 +43,12 @@ struct EnergyRenewableBid <: PSI.VariableType end
 struct EnergyBatteryChargeBid <: PSI.VariableType end
 struct EnergyBatteryDischargeBid <: PSI.VariableType end
 
-# AS Total DA Bids
+# Ancillary Service Total DA Bids
 """
     BidReserveVariableOut
 
 Variable type for day-ahead ancillary service offer (generation direction) for the
-hybrid at the PCC.
+hybrid at the point of common coupling (PCC).
 
 Docs abbreviation: ``sb^{\\text{out}}_{p,t} \\in [0, F_p P_{\\max,\\text{pcc}}]`` for product ``p``.
 """
@@ -58,7 +58,7 @@ struct BidReserveVariableOut <: PSI.VariableType end
     BidReserveVariableIn
 
 Variable type for day-ahead ancillary service bid (consumption direction) for the
-hybrid at the PCC.
+hybrid at the point of common coupling (PCC).
 
 Docs abbreviation: ``sb^{\\text{in}}_{p,t} \\in [0, F_p P_{\\max,\\text{pcc}}]`` for product ``p``.
 """
@@ -79,7 +79,7 @@ abstract type BatteryRegularizationVariable <: PSI.VariableType end
 struct ChargeRegularizationVariable <: BatteryRegularizationVariable end
 struct DischargeRegularizationVariable <: BatteryRegularizationVariable end
 
-# AS Variable for Hybrid
+# Ancillary Service Variable for Hybrid
 abstract type ReserveVariableType <: PSI.VariableType end
 abstract type AssetReserveVariableType <: ReserveVariableType end
 
@@ -103,7 +103,7 @@ struct ReserveVariableIn <: AssetReserveVariableType end
     TotalReserve
 
 Auxiliary variable type for the total reserve quantity (sum of component reserves)
-at the PCC. Used in reserve balance constraints; not written to results by default.
+at the point of common coupling (PCC). Used in reserve balance constraints; not written to results by default.
 """
 struct TotalReserve <: AssetReserveVariableType end
 struct SlackReserveUp <: PSI.VariableType end

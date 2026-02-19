@@ -31,7 +31,7 @@ struct RealTimeEnergyPrice <: PSI.ObjectiveFunctionParameter end
 Objective function parameter for ancillary service price.
 
 Docs abbreviation: ``\\Pi^*_{p,t}`` (USD/MWh) for service ``p \\in P``. Used in the DA
-profit term for AS (``sb^{\\text{out}}`` + ``sb^{\\text{in}}``).
+profit term for ancillary services (``sb^{\\text{out}}`` + ``sb^{\\text{in}}``).
 """
 struct AncillaryServicePrice <: PSI.ObjectiveFunctionParameter end
 
