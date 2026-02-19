@@ -419,8 +419,8 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
             RenewableActivePowerLimitConstraint(),
             PSY.HybridSystem,
             h_names,
-            T_rt,
-            meta="ub",
+            T_rt;
+            meta = "ub",
         )
 
         re_param_container =

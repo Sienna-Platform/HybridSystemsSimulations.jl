@@ -1,5 +1,5 @@
 @testset "Test HybridSystem CoOptimizer DecisionModel" begin
-    sys = PSB.build_RTS_GMLC_RT_sys(raw_data=PSB.RTS_DIR, horizon=864)
+    sys = PSB.build_RTS_GMLC_RT_sys(; raw_data = PSB.RTS_DIR, horizon = 864)
 
     # Attach Data to System Ext
     bus_name = "chuhsi"
@@ -31,11 +31,11 @@
     m = DecisionModel(
         MerchantHybridCooptimized,
         ProblemTemplate(CopperPlatePowerModel),
-        sys,
-        optimizer=HiGHS_optimizer,
-        store_variable_names=true,
+        sys;
+        optimizer = HiGHS_optimizer,
+        store_variable_names = true,
     )
-    build_out = PSI.build!(m, output_dir=mktempdir(cleanup=true))
+    build_out = PSI.build!(m; output_dir = mktempdir(; cleanup = true))
     @test build_out == PSI.BuildStatus.BUILT
     solve_out = PSI.solve!(m)
     @test solve_out == PSI.RunStatus.SUCCESSFUL

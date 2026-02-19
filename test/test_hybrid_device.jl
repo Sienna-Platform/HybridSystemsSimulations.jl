@@ -18,18 +18,18 @@
         DeviceModel(
             PSY.HybridSystem,
             HybridEnergyOnlyDispatch;
-            attributes=Dict{String, Any}("cycling" => true),
+            attributes = Dict{String, Any}("cycling" => true),
         ),
     )
 
     m = DecisionModel(
         template_uc_dcp,
-        sys_rts_da,
-        optimizer=HiGHS_optimizer,
-        store_variable_names=true,
+        sys_rts_da;
+        optimizer = HiGHS_optimizer,
+        store_variable_names = true,
     )
 
-    build_out = PSI.build!(m, output_dir=mktempdir(cleanup=true))
+    build_out = PSI.build!(m; output_dir = mktempdir(; cleanup = true))
     @test build_out == PSI.BuildStatus.BUILT
     solve_out = PSI.solve!(m)
     @test solve_out == PSI.RunStatus.SUCCESSFUL
@@ -74,18 +74,18 @@ end
         DeviceModel(
             PSY.HybridSystem,
             HybridDispatchWithReserves;
-            attributes=Dict{String, Any}("cycling" => true),
+            attributes = Dict{String, Any}("cycling" => true),
         ),
     )
 
     m = DecisionModel(
         template_uc_dcp,
-        sys_rts_da,
-        optimizer=HiGHS_optimizer,
-        store_variable_names=true,
+        sys_rts_da;
+        optimizer = HiGHS_optimizer,
+        store_variable_names = true,
     )
 
-    build_out = PSI.build!(m, output_dir=mktempdir(cleanup=true))
+    build_out = PSI.build!(m; output_dir = mktempdir(; cleanup = true))
     @test build_out == PSI.BuildStatus.BUILT
     solve_out = PSI.solve!(m)
     @test solve_out == PSI.RunStatus.SUCCESSFUL

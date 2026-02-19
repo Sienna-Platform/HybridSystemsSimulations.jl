@@ -88,7 +88,7 @@ function PSI.add_variables!(
             typeof(service),
             PSY.get_name.(devices),
             time_steps;
-            meta=PSY.get_name(service),
+            meta = PSY.get_name(service),
         )
 
         for d in devices, t in time_steps
@@ -126,7 +126,7 @@ function PSI.add_variables!(
             typeof(service),
             PSY.get_name.(devices),
             time_steps;
-            meta=PSY.get_name(service),
+            meta = PSY.get_name(service),
         )
 
         for d in devices, t in time_steps
@@ -205,7 +205,7 @@ function PSI.add_variables!(
             typeof(service),
             PSY.get_name.(devices),
             time_steps;
-            meta=PSY.get_name(service),
+            meta = PSY.get_name(service),
         )
 
         for d in devices, t in time_steps

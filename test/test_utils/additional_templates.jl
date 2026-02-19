@@ -18,7 +18,7 @@ function set_uc_models!(template_uc)
         DeviceModel(
             PSY.HybridSystem,
             HybridEnergyOnlyDispatch;
-            attributes=Dict{String, Any}("cycling" => false),
+            attributes = Dict{String, Any}("cycling" => false),
         ),
     )
     set_device_model!(template_uc, GenericBattery, BookKeeping)
@@ -51,7 +51,7 @@ end
 function set_ptdf_line_template!(template_uc)
     set_device_model!(
         template_uc,
-        DeviceModel(Line, StaticBranch, duals=[NetworkFlowConstraint]),
+        DeviceModel(Line, StaticBranch; duals = [NetworkFlowConstraint]),
     )
     return
 end
@@ -75,10 +75,10 @@ end
 function get_uc_ptdf_template(sys_rts_da)
     template_uc = ProblemTemplate(
         NetworkModel(
-            PTDFPowerModel,
-            use_slacks=true,
-            PTDF_matrix=PTDF(sys_rts_da),
-            duals=[CopperPlateBalanceConstraint],
+            PTDFPowerModel;
+            use_slacks = true,
+            PTDF_matrix = PTDF(sys_rts_da),
+            duals = [CopperPlateBalanceConstraint],
         ),
     )
     set_uc_models!(template_uc)
@@ -111,10 +111,10 @@ end
 function get_uc_copperplate_template(sys_rts_da)
     template_uc = ProblemTemplate(
         NetworkModel(
-            CopperPlatePowerModel,
-            use_slacks=true,
-            PTDF_matrix=PTDF(sys_rts_da),
-            duals=[CopperPlateBalanceConstraint],
+            CopperPlatePowerModel;
+            use_slacks = true,
+            PTDF_matrix = PTDF(sys_rts_da),
+            duals = [CopperPlateBalanceConstraint],
         ),
     )
     set_uc_models!(template_uc)
@@ -132,7 +132,11 @@ end
 
 function get_uc_dcp_template()
     template_uc = ProblemTemplate(
-        NetworkModel(DCPPowerModel, use_slacks=true, duals=[NodalBalanceActiveConstraint]),
+        NetworkModel(
+            DCPPowerModel;
+            use_slacks = true,
+            duals = [NodalBalanceActiveConstraint],
+        ),
     )
     set_uc_models!(template_uc)
     set_dcp_line_template!(template_uc)
@@ -155,60 +159,60 @@ function build_simulation_case(
     mipgap::Float64,
     start_time,
 )
-    models = SimulationModels(
-        decision_models=[
+    models = SimulationModels(;
+        decision_models = [
             DecisionModel(
                 template_uc,
                 sys_da;
-                name="UC",
-                optimizer=HiGHS_optimizer,
-                system_to_file=false,
-                initialize_model=true,
-                optimizer_solve_log_print=true,
-                direct_mode_optimizer=true,
-                rebuild_model=false,
-                store_variable_names=true,
+                name = "UC",
+                optimizer = HiGHS_optimizer,
+                system_to_file = false,
+                initialize_model = true,
+                optimizer_solve_log_print = true,
+                direct_mode_optimizer = true,
+                rebuild_model = false,
+                store_variable_names = true,
                 #check_numerical_bounds=false,
             ),
             DecisionModel(
                 template_ed,
                 sys_rt;
-                name="ED",
-                optimizer=optimizer_with_attributes(Xpress.Optimizer),
-                system_to_file=false,
-                initialize_model=true,
-                optimizer_solve_log_print=false,
-                check_numerical_bounds=false,
-                rebuild_model=false,
-                calculate_conflict=true,
-                store_variable_names=true,
+                name = "ED",
+                optimizer = optimizer_with_attributes(Xpress.Optimizer),
+                system_to_file = false,
+                initialize_model = true,
+                optimizer_solve_log_print = false,
+                check_numerical_bounds = false,
+                rebuild_model = false,
+                calculate_conflict = true,
+                store_variable_names = true,
                 #export_pwl_vars = true,
             ),
         ],
     )
 
     # Set-up the sequence UC-ED
-    sequence = SimulationSequence(
-        models=models,
-        feedforwards=Dict(
+    sequence = SimulationSequence(;
+        models = models,
+        feedforwards = Dict(
             "ED" => [
-                SemiContinuousFeedforward(
-                    component_type=ThermalStandard,
-                    source=OnVariable,
-                    affected_values=[ActivePowerVariable],
+                SemiContinuousFeedforward(;
+                    component_type = ThermalStandard,
+                    source = OnVariable,
+                    affected_values = [ActivePowerVariable],
                 ),
             ],
         ),
-        ini_cond_chronology=InterProblemChronology(),
+        ini_cond_chronology = InterProblemChronology(),
     )
 
-    sim = Simulation(
-        name="compact_sim",
-        steps=num_steps,
-        models=models,
-        sequence=sequence,
-        initial_time=start_time,
-        simulation_folder=mktempdir(cleanup=true),
+    sim = Simulation(;
+        name = "compact_sim",
+        steps = num_steps,
+        models = models,
+        sequence = sequence,
+        initial_time = start_time,
+        simulation_folder = mktempdir(; cleanup = true),
     )
 
     return sim
@@ -224,52 +228,52 @@ function build_simulation_case_optimizer(
     mipgap::Float64,
     start_time,
 )
-    models = SimulationModels(
-        decision_models=[
+    models = SimulationModels(;
+        decision_models = [
             decision_optimizer,
             DecisionModel(
                 template_uc,
                 sys_da;
-                name="UC",
-                optimizer=HiGHS_optimizer,
-                system_to_file=false,
-                initialize_model=true,
-                optimizer_solve_log_print=false,
-                direct_mode_optimizer=true,
-                rebuild_model=false,
-                store_variable_names=true,
+                name = "UC",
+                optimizer = HiGHS_optimizer,
+                system_to_file = false,
+                initialize_model = true,
+                optimizer_solve_log_print = false,
+                direct_mode_optimizer = true,
+                rebuild_model = false,
+                store_variable_names = true,
                 #check_numerical_bounds=false,
             ),
         ],
     )
 
     # Set-up the sequence Optimizer-UC
-    sequence = SimulationSequence(
-        models=models,
-        feedforwards=Dict(
+    sequence = SimulationSequence(;
+        models = models,
+        feedforwards = Dict(
             "UC" => [
-                FixValueFeedforward(
-                    component_type=PSY.HybridSystem,
-                    source=EnergyDABidOut,
-                    affected_values=[ActivePowerOutVariable],
+                FixValueFeedforward(;
+                    component_type = PSY.HybridSystem,
+                    source = EnergyDABidOut,
+                    affected_values = [ActivePowerOutVariable],
                 ),
-                FixValueFeedforward(
-                    component_type=PSY.HybridSystem,
-                    source=EnergyDABidIn,
-                    affected_values=[ActivePowerInVariable],
+                FixValueFeedforward(;
+                    component_type = PSY.HybridSystem,
+                    source = EnergyDABidIn,
+                    affected_values = [ActivePowerInVariable],
                 ),
             ],
         ),
-        ini_cond_chronology=InterProblemChronology(),
+        ini_cond_chronology = InterProblemChronology(),
     )
 
-    sim = Simulation(
-        name="compact_sim",
-        steps=num_steps,
-        models=models,
-        sequence=sequence,
-        initial_time=start_time,
-        simulation_folder=mktempdir(cleanup=true),
+    sim = Simulation(;
+        name = "compact_sim",
+        steps = num_steps,
+        models = models,
+        sequence = sequence,
+        initial_time = start_time,
+        simulation_folder = mktempdir(; cleanup = true),
     )
 
     return sim

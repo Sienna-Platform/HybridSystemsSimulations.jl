@@ -4,22 +4,22 @@ function get_da_max_active_power_series(r_gen, starttime, steps::Int)
     ta = get_time_series_array(
         SingleTimeSeries,
         r_gen,
-        "max_active_power",
-        start_time=starttime,
-        len=24 * steps,
+        "max_active_power";
+        start_time = starttime,
+        len = 24 * steps,
     )
-    return DataFrame(DateTime=timestamp(ta), MaxPower=values(ta))
+    return DataFrame(; DateTime = timestamp(ta), MaxPower = values(ta))
 end
 
 function get_rt_max_active_power_series(r_gen, starttime, steps::Int)
     ta = get_time_series_array(
         SingleTimeSeries,
         r_gen,
-        "max_active_power",
-        start_time=starttime,
-        len=24 * 12 * steps,
+        "max_active_power";
+        start_time = starttime,
+        len = 24 * 12 * steps,
     )
-    return DataFrame(DateTime=timestamp(ta), MaxPower=values(ta))
+    return DataFrame(; DateTime = timestamp(ta), MaxPower = values(ta))
 end
 
 function get_battery_params(b_gen::GenericBattery)
@@ -49,7 +49,7 @@ function get_battery_params(b_gen::GenericBattery)
         η_in,
         η_out,
     ]
-    return DataFrame(ParamName=battery_params_names, Value=battery_params_vals)
+    return DataFrame(; ParamName = battery_params_names, Value = battery_params_vals)
 end
 
 function get_thermal_params(t_gen)
@@ -60,9 +60,9 @@ function get_thermal_params(t_gen)
     second_part = three_cost.variable[2]
     slope = (second_part[1] - first_part[1]) / (second_part[2] - first_part[2]) # $/MWh
     fix_cost = three_cost.fixed # $/h
-    return DataFrame(
-        ParamName=["P_min", "P_max", "C_var", "C_fix"],
-        Value=[P_min, P_max, slope, fix_cost],
+    return DataFrame(;
+        ParamName = ["P_min", "P_max", "C_var", "C_fix"],
+        Value = [P_min, P_max, slope, fix_cost],
     )
 end
 
@@ -89,21 +89,21 @@ function _build_battery(
 )
     name = string(bus.number) * "_BATTERY"
     device = GenericBattery(;
-        name=name,
-        available=true,
-        bus=bus,
-        prime_mover_type=PSY.PrimeMovers.BA,
-        initial_energy=energy_capacity / 2,
-        state_of_charge_limits=(min=energy_capacity * 0.05, max=energy_capacity),
-        rating=rating,
-        active_power=rating,
-        input_active_power_limits=(min=0.0, max=rating),
-        output_active_power_limits=(min=0.0, max=rating),
-        efficiency=(in=efficiency_in, out=efficiency_out),
-        reactive_power=0.0,
-        reactive_power_limits=nothing,
-        base_power=100.0,
-        operation_cost=PSY.TwoPartCost(0.0, 0.0),
+        name = name,
+        available = true,
+        bus = bus,
+        prime_mover_type = PSY.PrimeMovers.BA,
+        initial_energy = energy_capacity / 2,
+        state_of_charge_limits = (min = energy_capacity * 0.05, max = energy_capacity),
+        rating = rating,
+        active_power = rating,
+        input_active_power_limits = (min = 0.0, max = rating),
+        output_active_power_limits = (min = 0.0, max = rating),
+        efficiency = (in = efficiency_in, out = efficiency_out),
+        reactive_power = 0.0,
+        reactive_power_limits = nothing,
+        base_power = 100.0,
+        operation_cost = PSY.TwoPartCost(0.0, 0.0),
     )
     return device
 end
@@ -128,24 +128,24 @@ function add_hybrid_to_chuhsi_bus!(sys::System)
     load = get_component(PowerLoad, sys, load_name)
     # Create the Hybrid
     hybrid_name = string(bus.number) * "_Hybrid"
-    hybrid = PSY.HybridSystem(
-        name=hybrid_name,
-        available=true,
-        status=true,
-        bus=bus,
-        active_power=1.0,
-        reactive_power=0.0,
-        base_power=100.0,
-        operation_cost=TwoPartCost(nothing),
-        thermal_unit=thermal, #new_th,
-        electric_load=load, #new_load,
-        storage=bat,
-        renewable_unit=renewable, #new_ren,
-        interconnection_impedance=0.0 + 0.0im,
-        interconnection_rating=nothing,
-        input_active_power_limits=(min=0.0, max=10.0),
-        output_active_power_limits=(min=0.0, max=10.0),
-        reactive_power_limits=nothing,
+    hybrid = PSY.HybridSystem(;
+        name = hybrid_name,
+        available = true,
+        status = true,
+        bus = bus,
+        active_power = 1.0,
+        reactive_power = 0.0,
+        base_power = 100.0,
+        operation_cost = TwoPartCost(nothing),
+        thermal_unit = thermal, #new_th,
+        electric_load = load, #new_load,
+        storage = bat,
+        renewable_unit = renewable, #new_ren,
+        interconnection_impedance = 0.0 + 0.0im,
+        interconnection_rating = nothing,
+        input_active_power_limits = (min = 0.0, max = 10.0),
+        output_active_power_limits = (min = 0.0, max = 10.0),
+        reactive_power_limits = nothing,
     )
     # Add Hybrid
     add_component!(sys, hybrid)

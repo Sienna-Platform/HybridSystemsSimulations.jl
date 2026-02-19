@@ -204,8 +204,8 @@ function PSI.update_decision_state!(
         state_data_index = 1
         state_data.timestamps[:] .= range(
             simulation_time;
-            step=state_resolution,
-            length=PSI.get_num_rows(state_data),
+            step = state_resolution,
+            length = PSI.get_num_rows(state_data),
         )
     else
         state_data_index = PSI.find_timestamp_index(state_timestamps, simulation_time)
@@ -245,7 +245,7 @@ function PSI._update_parameter_values!(
     state_timestamps = state_data.timestamps
     max_state_index = PSI.get_num_rows(state_data)
     state_data_index = PSI.find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1
@@ -283,11 +283,11 @@ function PSI._fix_parameter_value!(
         if time_var[end] < time[end]
             for t in time_var, name in component_names
                 t_ = 1 + (t - 1) * time[end] ÷ time_var[end]
-                JuMP.fix(variable[name, t], parameter_array[name, t_]; force=true)
+                JuMP.fix(variable[name, t], parameter_array[name, t_]; force = true)
             end
         elseif time_var[end] == time[end]
             for t in time_var, name in component_names
-                JuMP.fix(variable[name, t], parameter_array[name, t]; force=true)
+                JuMP.fix(variable[name, t], parameter_array[name, t]; force = true)
             end
         else
             error("invalid condition")
@@ -319,8 +319,8 @@ function PSI.update_decision_state!(
         state_data_index = 1
         state_data.timestamps[:] .= range(
             simulation_time;
-            step=state_resolution,
-            length=PSI.get_num_rows(state_data),
+            step = state_resolution,
+            length = PSI.get_num_rows(state_data),
         )
     else
         state_data_index = PSI.find_timestamp_index(state_timestamps, simulation_time)
@@ -376,7 +376,7 @@ function PSI._update_parameter_values!(
         @assert false
     end
     state_data_index = PSI.find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1

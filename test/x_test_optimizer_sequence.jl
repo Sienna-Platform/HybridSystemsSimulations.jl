@@ -3,9 +3,13 @@
     ######## Load Systems #########
     ###############################
 
-    sys_rts_da = PSB.build_RTS_GMLC_DA_sys(raw_data=PSB.RTS_DIR, horizon=48)
+    sys_rts_da = PSB.build_RTS_GMLC_DA_sys(; raw_data = PSB.RTS_DIR, horizon = 48)
     sys_rts_rt =
-        PSB.build_RTS_GMLC_RT_sys(raw_data=PSB.RTS_DIR, horizon=864, interval=Minute(1440))
+        PSB.build_RTS_GMLC_RT_sys(;
+            raw_data = PSB.RTS_DIR,
+            horizon = 864,
+            interval = Minute(1440),
+        )
 
     # There is no Wind + Thermal in a Single Bus.
     # We will try to pick the Wind in 317 bus Chuhsi
@@ -62,9 +66,9 @@
     m = DecisionModel(
         MerchantHybridEnergyOnly,
         ProblemTemplate(CopperPlatePowerModel),
-        sys_rts_rt,
-        optimizer=HiGHS_optimizer,
-        horizon=864,
+        sys_rts_rt;
+        optimizer = HiGHS_optimizer,
+        horizon = 864,
     )
 
     sim_optimizer = build_simulation_case_optimizer(

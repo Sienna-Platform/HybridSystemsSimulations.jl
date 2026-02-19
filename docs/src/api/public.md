@@ -133,9 +133,11 @@ ComplementarySlacknessEnergyAssetBalanceUb
 ComplementarySlacknessEnergyAssetBalanceLb
 ComplementarySlacknessRenewableActivePowerLimitConstraintUb
 ```
+
 ```@docs; canonical=false
 ComplementarySlacknessRenewableActivePowerLimitConstraintLb
 ```
+
 ```@docs
 ComplementarySlacknessBatteryStatusDischargeOnUb
 ComplementarySlacknessBatteryStatusDischargeOnLb

@@ -1,12 +1,12 @@
 @testset "Test HybridSystem Merchant Decision Model Only Energy" begin
     horizon_merchant_rt = 288
     horizon_merchant_da = 24
-    sys_rts_merchant = PSB.build_RTS_GMLC_RT_sys(
-        raw_data=PSB.RTS_DIR,
-        horizon=horizon_merchant_rt,
-        interval=Hour(24),
+    sys_rts_merchant = PSB.build_RTS_GMLC_RT_sys(;
+        raw_data = PSB.RTS_DIR,
+        horizon = horizon_merchant_rt,
+        interval = Hour(24),
     )
-    sys_rts_da = PSB.build_RTS_GMLC_DA_sys(raw_data=PSB.RTS_DIR, horizon=24)
+    sys_rts_da = PSB.build_RTS_GMLC_DA_sys(; raw_data = PSB.RTS_DIR, horizon = 24)
 
     # There is no Wind + Thermal in a Single Bus.
     # We will try to pick the Wind in 317 bus Chuhsi
@@ -37,14 +37,14 @@
     decision_optimizer_DA = DecisionModel(
         MerchantHybridEnergyCase,
         ProblemTemplate(CopperPlatePowerModel),
-        sys,
-        optimizer=HiGHS_optimizer,
-        calculate_conflict=true,
-        store_variable_names=true;
-        name="MerchantHybridEnergyCase_DA",
+        sys;
+        optimizer = HiGHS_optimizer,
+        calculate_conflict = true,
+        store_variable_names = true,
+        name = "MerchantHybridEnergyCase_DA",
     )
 
-    build!(decision_optimizer_DA; output_dir=mktempdir())
+    build!(decision_optimizer_DA; output_dir = mktempdir())
     solve!(decision_optimizer_DA)
 
     results = ProblemResults(decision_optimizer_DA)

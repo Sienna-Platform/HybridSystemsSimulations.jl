@@ -91,7 +91,7 @@ function _add_price_time_series_parameters(
             Float64,
             device_names,
             time_steps;
-            meta="$var",
+            meta = "$var",
         )
 
         for device in devices
@@ -149,7 +149,7 @@ function _add_price_time_series_parameters(
                 Float64,
                 device_names,
                 time_steps;
-                meta="$(var)_$(service_name)",
+                meta = "$(var)_$(service_name)",
             )
 
             for device in devices
@@ -183,7 +183,7 @@ function add_time_series_parameters!(
     container::PSI.OptimizationContainer,
     param::RenewablePowerTimeSeries,
     devices::Vector{PSY.HybridSystem},
-    ts_name="RenewableDispatch__max_active_power",
+    ts_name = "RenewableDispatch__max_active_power",
 )
     _add_time_series_parameters(container, ts_name, param, devices)
 end
@@ -192,7 +192,7 @@ function add_time_series_parameters!(
     container::PSI.OptimizationContainer,
     param::ElectricLoadTimeSeries,
     devices::Vector{PSY.HybridSystem},
-    ts_name="PowerLoad__max_active_power",
+    ts_name = "PowerLoad__max_active_power",
 )
     _add_time_series_parameters(container, ts_name, param, devices)
     return
@@ -359,7 +359,7 @@ function PSI._update_parameter_values!(
         t_step = model_resolution ÷ state_data.resolution
     end
     state_data_index = find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1
@@ -475,7 +475,7 @@ function PSI._add_parameters!(
         device_names,
         service_names,
         time_steps;
-        meta="$TotalReserve",
+        meta = "$TotalReserve",
     )
     jump_model = PSI.get_jump_model(container)
     for d in devices
@@ -512,7 +512,7 @@ function PSI._fix_parameter_value!(
             JuMP.fix(
                 variable[name, s_name, t],
                 parameter_array[name, s_name, t];
-                force=true,
+                force = true,
             )
         end
     end
