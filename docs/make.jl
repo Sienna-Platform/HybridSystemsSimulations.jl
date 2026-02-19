@@ -2,6 +2,9 @@ using Documenter
 using HybridSystemsSimulations
 using DataStructures
 using DocumenterInterLinks
+using Literate
+
+const _DOCS_BASE_URL = "https://nrel-sienna.github.io/HybridSystemsSimulations.jl/stable"
 
 links = InterLinks(
     "Julia" => "https://docs.julialang.org/en/v1/",
@@ -10,12 +13,16 @@ links = InterLinks(
     "PowerSimulations" => "https://nrel-sienna.github.io/PowerSimulations.jl/stable/",
 )
 
+include(joinpath(@__DIR__, "make_tutorials.jl"))
+make_tutorials()
+
 pages = OrderedDict(
     "Welcome Page" => "index.md",
-    "Quick Start Guide" => "quick_start_guide.md",
-    "Tutorials" => "tutorials/intro_page.md",
-    "Public API Reference" => "api/public.md",
-    "Internal API Reference" => "api/internal.md",
+    "Tutorials" => Any[],
+    "Reference" => Any[
+        "Public API" => "api/public.md",
+        "Internals" => "api/internal.md",
+    ],
 )
 
 makedocs(;
