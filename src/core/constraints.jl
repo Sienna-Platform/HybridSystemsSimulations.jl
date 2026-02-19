@@ -218,19 +218,18 @@ Complementary slackness (lower bound) for storage energy balance.
 struct ComplementarySlacknessBatteryBalanceLb <: PSI.ConstraintType end
 
 """
-    ComplentarySlacknessCyclingCharge
+    ComplementarySlacknessCyclingCharge
 
-Complementary slackness for the charging cycle limit (``c_{\\text{ch}}^-``); note spelling
-"Complentary" is kept for API compatibility.
+Complementary slackness for the charging cycle limit (``c_{\\text{ch}}^-``).
 """
-struct ComplentarySlacknessCyclingCharge <: PSI.ConstraintType end
+struct ComplementarySlacknessCyclingCharge <: PSI.ConstraintType end
 
 """
-    ComplentarySlacknessCyclingDischarge
+    ComplementarySlacknessCyclingDischarge
 
 Complementary slackness for the discharging cycle limit (``c_{\\text{ds}}^-``).
 """
-struct ComplentarySlacknessCyclingDischarge <: PSI.ConstraintType end
+struct ComplementarySlacknessCyclingDischarge <: PSI.ConstraintType end
 
 """
     ComplementarySlacknessEnergyLimitUb

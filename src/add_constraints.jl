@@ -3344,7 +3344,7 @@ end
 
 function add_constraints!(
     container::PSI.OptimizationContainer,
-    T::Type{<:ComplentarySlacknessCyclingCharge},
+    T::Type{<:ComplementarySlacknessCyclingCharge},
     devices::U,
     ::W,
 ) where {
@@ -3381,7 +3381,7 @@ end
 
 function add_constraints!(
     container::PSI.OptimizationContainer,
-    T::Type{<:ComplentarySlacknessCyclingDischarge},
+    T::Type{<:ComplementarySlacknessCyclingDischarge},
     devices::U,
     ::W,
 ) where {

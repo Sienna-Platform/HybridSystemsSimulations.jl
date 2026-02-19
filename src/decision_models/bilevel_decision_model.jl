@@ -949,8 +949,8 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
             ComplementarySlacknessBatteryBalanceLb,
             ComplementarySlacknessEnergyLimitUb,
             ComplementarySlacknessEnergyLimitLb,
-            ComplentarySlacknessCyclingCharge,
-            ComplentarySlacknessCyclingDischarge,
+            ComplementarySlacknessCyclingCharge,
+            ComplementarySlacknessCyclingDischarge,
         ]
             add_constraints!(container, c, hybrids, MerchantModelWithReserves())
         end
