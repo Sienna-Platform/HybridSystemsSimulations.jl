@@ -8,11 +8,12 @@ function set_uc_models!(template_uc)
     #set_device_model!(template_uc, ThermalMultiStart, ThermalStandardUnitCommitment)
     set_device_model!(template_uc, ThermalStandard, ThermalStandardUnitCommitment)
     set_device_model!(template_uc, RenewableDispatch, RenewableFullDispatch)
-    set_device_model!(template_uc, RenewableFix, FixedOutput)
+    set_device_model!(template_uc, RenewableNonDispatch, FixedOutput)
     set_device_model!(template_uc, PowerLoad, StaticPowerLoad)
     #set_device_model!(template_uc, Transformer2W, StaticBranchUnbounded)
     set_device_model!(template_uc, TapTransformer, StaticBranchUnbounded)
-    set_device_model!(template_uc, HydroDispatch, FixedOutput)
+    # Hydros are not needed for hybrid-focused tests under PSY5/PSI0.33
+    # set_device_model!(template_uc, HydroDispatch, FixedOutput)
     set_device_model!(
         template_uc,
         DeviceModel(
@@ -21,7 +22,7 @@ function set_uc_models!(template_uc)
             attributes = Dict{String, Any}("cycling" => false),
         ),
     )
-    set_device_model!(template_uc, GenericBattery, BookKeeping)
+    set_device_model!(template_uc, PSY.EnergyReservoirStorage, BookKeeping)
     set_service_model!(template_uc, ServiceModel(VariableReserve{ReserveUp}, RangeReserve))
     set_service_model!(
         template_uc,
@@ -33,10 +34,38 @@ end
 function update_ed_models!(template_ed)
     #set_device_model!(template_ed, ThermalMultiStart, ThermalStandardDispatch)
     set_device_model!(template_ed, ThermalStandard, ThermalBasicDispatch)
-    set_device_model!(template_ed, HydroDispatch, FixedOutput)
+    # Hydros are not needed for hybrid-focused tests under PSY5/PSI0.33
+    # set_device_model!(template_ed, HydroDispatch, FixedOutput)
     #set_device_model!(template_ed, HydroEnergyReservoir, HydroDispatchRunOfRiver)
     empty!(template_ed.services)
     return
+end
+
+function get_template_basic_uc_simulation()
+    template = ProblemTemplate(CopperPlatePowerModel)
+    set_device_model!(template, ThermalStandard, ThermalBasicDispatch)
+    set_device_model!(template, RenewableDispatch, RenewableFullDispatch)
+    set_device_model!(template, PowerLoad, StaticPowerLoad)
+    set_device_model!(template, InterruptiblePowerLoad, StaticPowerLoad)
+    return template
+end
+
+function get_template_standard_uc_simulation()
+    template = get_template_basic_uc_simulation()
+    set_device_model!(template, ThermalStandard, ThermalStandardUnitCommitment)
+    return template
+end
+
+function get_thermal_dispatch_template_network(network = CopperPlatePowerModel)
+    template = ProblemTemplate(network)
+    set_device_model!(template, ThermalStandard, ThermalBasicDispatch)
+    set_device_model!(template, PowerLoad, StaticPowerLoad)
+    set_device_model!(template, MonitoredLine, StaticBranchBounds)
+    set_device_model!(template, Line, StaticBranch)
+    set_device_model!(template, Transformer2W, StaticBranch)
+    set_device_model!(template, TapTransformer, StaticBranch)
+    set_device_model!(template, TwoTerminalGenericHVDCLine, HVDCTwoTerminalLossless)
+    return template
 end
 
 ###############################

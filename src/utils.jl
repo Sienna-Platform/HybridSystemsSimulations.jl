@@ -59,7 +59,7 @@ function _update_parameter_values!(
                 horizon,
             )
             for (t, value) in enumerate(ts_vector)
-                _set_param_value!(param_array, value, ts_uuid, string(subcomp_type), t)
+                _set_param_value_hss!(param_array, value, ts_uuid, string(subcomp_type), t)
             end
             push!(ts_uuids, ts_uuid)
         end

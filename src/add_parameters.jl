@@ -376,7 +376,7 @@ function PSI._update_parameter_values!(
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            _set_param_value!(parameter_array, state_value, name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, t)
         end
     end
     return
@@ -430,14 +430,14 @@ function PSI._update_parameter_values!(
             end
             state_value += state_value_
         end
-        PSI._set_param_value!(parameter_array, state_value, name, final_time)
+        _set_param_value_hss!(parameter_array, state_value, name, final_time)
     end
     return
 end
 
 # Container for Total Reserve #
 
-function PSI._set_param_value!(
+function _set_param_value_hss!(
     param::AbstractArray,
     value::Float64,
     name::String,
@@ -445,11 +445,10 @@ function PSI._set_param_value!(
     t::Int,
 )
     param[name, service_name, t] = value
-    #PSI.fix_parameter_value(param[name, service_name, t], value)
     return
 end
 
-function PSI._set_param_value!(param::AbstractArray, value::Float64, name::String, t::Int)
+function _set_param_value_hss!(param::AbstractArray, value::Float64, name::String, t::Int)
     PSI.fix_parameter_value(param[name, t], value)
     return
 end

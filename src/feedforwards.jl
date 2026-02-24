@@ -130,6 +130,71 @@ function PSI._add_feedforward_arguments!(
     return
 end
 
+function PSI._add_feedforward_arguments!(
+    container::PSI.OptimizationContainer,
+    model::PSI.DeviceModel{D, U},
+    devices::IS.FlattenIteratorWrapper{D},
+    ff::PSI.SemiContinuousFeedforward,
+) where {D <: PSY.HybridSystem, U <: PSI.AbstractDeviceFormulation}
+    parameter_type = PSI.get_default_parameter_type(ff, D)
+    PSI.add_parameters!(container, parameter_type, ff, model, devices)
+    PSI.add_to_expression!(
+        container,
+        PSI.ActivePowerRangeExpressionUB,
+        parameter_type(),
+        devices,
+        model,
+    )
+    PSI.add_to_expression!(
+        container,
+        PSI.ActivePowerRangeExpressionLB,
+        parameter_type(),
+        devices,
+        model,
+    )
+    return
+end
+
+function PSI._add_feedforward_arguments!(
+    container::PSI.OptimizationContainer,
+    model::PSI.DeviceModel{D, U},
+    devices::IS.FlattenIteratorWrapper{D},
+    ff::PSI.UpperBoundFeedforward,
+) where {D <: PSY.HybridSystem, U <: PSI.AbstractDeviceFormulation}
+    parameter_type = PSI.get_default_parameter_type(ff, D)
+    PSI.add_parameters!(container, parameter_type, ff, model, devices)
+    if PSI.get_slacks(ff)
+        PSI._add_feedforward_slack_variables!(
+            container,
+            PSI.UpperBoundFeedForwardSlack(),
+            ff,
+            model,
+            devices,
+        )
+    end
+    return
+end
+
+function PSI._add_feedforward_arguments!(
+    container::PSI.OptimizationContainer,
+    model::PSI.DeviceModel{D, U},
+    devices::IS.FlattenIteratorWrapper{D},
+    ff::PSI.LowerBoundFeedforward,
+) where {D <: PSY.HybridSystem, U <: PSI.AbstractDeviceFormulation}
+    parameter_type = PSI.get_default_parameter_type(ff, D)
+    PSI.add_parameters!(container, parameter_type, ff, model, devices)
+    if PSI.get_slacks(ff)
+        PSI._add_feedforward_slack_variables!(
+            container,
+            PSI.LowerBoundFeedForwardSlack(),
+            ff,
+            model,
+            devices,
+        )
+    end
+    return
+end
+
 function PSI.add_feedforward_constraints!(
     container::PSI.OptimizationContainer,
     model::PSI.DeviceModel,

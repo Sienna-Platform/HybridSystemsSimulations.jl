@@ -22,7 +22,7 @@ function get_rt_max_active_power_series(r_gen, starttime, steps::Int)
     return DataFrame(; DateTime = timestamp(ta), MaxPower = values(ta))
 end
 
-function get_battery_params(b_gen::GenericBattery)
+function get_battery_params(b_gen::PSY.EnergyReservoirStorage)
     battery_params_names = [
         "initial_energy",
         "SoC_min",
@@ -74,7 +74,7 @@ function modify_ren_curtailment_cost!(sys)
     rdispatch = get_components(RenewableDispatch, sys)
     for ren in rdispatch
         # We consider 15 $/MWh as a reasonable cost for renewable curtailment
-        cost = TwoPartCost(15.0, 0.0)
+        cost = PSY.RenewableGenerationCost(nothing)
         set_operation_cost!(ren, cost)
     end
     return
@@ -88,13 +88,15 @@ function _build_battery(
     efficiency_out,
 )
     name = string(bus.number) * "_BATTERY"
-    device = GenericBattery(;
+    device = PSY.EnergyReservoirStorage(;
         name = name,
         available = true,
         bus = bus,
         prime_mover_type = PSY.PrimeMovers.BA,
-        initial_energy = energy_capacity / 2,
-        state_of_charge_limits = (min = energy_capacity * 0.05, max = energy_capacity),
+        storage_technology_type = PSY.StorageTech.OTHER_CHEM,
+        storage_capacity = energy_capacity,
+        storage_level_limits = (min = 0.05, max = 1.0),
+        initial_storage_capacity_level = 0.5,
         rating = rating,
         active_power = rating,
         input_active_power_limits = (min = 0.0, max = rating),
@@ -103,7 +105,7 @@ function _build_battery(
         reactive_power = 0.0,
         reactive_power_limits = nothing,
         base_power = 100.0,
-        operation_cost = PSY.TwoPartCost(0.0, 0.0),
+        operation_cost = PSY.StorageCost(nothing),
     )
     return device
 end
@@ -136,7 +138,7 @@ function add_hybrid_to_chuhsi_bus!(sys::System)
         active_power = 1.0,
         reactive_power = 0.0,
         base_power = 100.0,
-        operation_cost = TwoPartCost(nothing),
+        operation_cost = PSY.MarketBidCost(nothing),
         thermal_unit = thermal, #new_th,
         electric_load = load, #new_load,
         storage = bat,

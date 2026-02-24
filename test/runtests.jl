@@ -10,6 +10,7 @@ using CSV
 using InfrastructureSystems
 using Test
 using Logging
+using Dates
 
 import Aqua
 Aqua.test_unbound_args(HybridSystemsSimulations)
@@ -45,6 +46,9 @@ HiGHS_optimizer = JuMP.optimizer_with_attributes(
     "mip_abs_gap" => 3e-1,
     "mip_rel_gap" => 3e-1,
 )
+
+fast_ipopt_optimizer() = HiGHS_optimizer
+scs_solver() = HiGHS_optimizer
 
 # Load
 PSI_DIR = string(dirname(dirname(pathof(PowerSimulations))))

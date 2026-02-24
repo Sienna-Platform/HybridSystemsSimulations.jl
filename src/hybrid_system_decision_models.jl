@@ -262,7 +262,7 @@ function PSI._update_parameter_values!(
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            PSI._set_param_value!(parameter_array, state_value, name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, t)
         end
     end
     return
@@ -393,7 +393,7 @@ function PSI._update_parameter_values!(
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            PSI._set_param_value!(parameter_array, state_value, name, service_name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, service_name, t)
         end
     end
     return
