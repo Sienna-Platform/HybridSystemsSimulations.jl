@@ -35,3 +35,50 @@ Decision problem implementing a bilevel formulation for the merchant hybrid
 equilibrium or regulatory analysis. #TODO DOCS
 """
 struct MerchantHybridBilevelCase <: HybridDecisionProblem end
+
+###############################################################################
+# validate_time_series! for HybridDecisionProblem
+###############################################################################
+# Merchant models (HybridDecisionProblem) use custom builds and get horizon/resolution
+# from sys.ext, but the PowerSimulations DecisionModel constructor always calls
+# validate_time_series!. We extend it here with checks appropriate for merchant:
+# resolution/horizon initialization when UNSET, and forecast_count >= 1 (merchant
+# models require PowerSystems forecasts for renewables/loads).
+
+function PSI.validate_time_series!(model::PSI.DecisionModel{<:HybridDecisionProblem})
+    sys = PSI.get_system(model)
+    settings = PSI.get_settings(model)
+    available_resolutions = PSY.get_time_series_resolutions(sys)
+
+    if PSI.get_resolution(settings) == PSI.UNSET_RESOLUTION &&
+       length(available_resolutions) != 1
+        throw(
+            IS.ConflictingInputsError(
+                "Data contains multiple resolutions, the resolution keyword argument must be added to the Model. Time Series Resolutions: $(available_resolutions)",
+            ),
+        )
+    elseif PSI.get_resolution(settings) != PSI.UNSET_RESOLUTION &&
+           length(available_resolutions) > 1
+        if PSI.get_resolution(settings) ∉ available_resolutions
+            throw(
+                IS.ConflictingInputsError(
+                    "Resolution $(PSI.get_resolution(settings)) is not available in the system data. Time Series Resolutions: $(available_resolutions)",
+                ),
+            )
+        end
+    else
+        PSI.set_resolution!(settings, first(available_resolutions))
+    end
+
+    if PSI.get_horizon(settings) == PSI.UNSET_HORIZON
+        PSI.set_horizon!(settings, PSY.get_forecast_horizon(sys))
+    end
+
+    counts = PSY.get_time_series_counts(sys)
+    if counts.forecast_count < 1
+        error(
+            "The system does not contain forecast data. A DecisionModel can't be built.",
+        )
+    end
+    return
+end
