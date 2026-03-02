@@ -22,10 +22,29 @@ function PSI.get_default_attributes(
     )
 end
 
+# Preserve formulation for initial conditions: formulations that support services
+# must be preserved so IC build can handle hybrids with services.
 PSI.get_initial_conditions_device_model(
     ::PSI.OperationModel,
-    ::PSI.DeviceModel{T, <:AbstractHybridFormulation},
-) where {T <: PSY.HybridSystem} = PSI.DeviceModel(T, HybridEnergyOnlyDispatch)
+    model::PSI.DeviceModel{T, HybridDispatchWithReserves},
+) where {T <: PSY.HybridSystem} = model
+
+PSI.get_initial_conditions_device_model(
+    ::PSI.OperationModel,
+    model::PSI.DeviceModel{T, HybridEnergyOnlyDispatch},
+) where {T <: PSY.HybridSystem} = model
+
+PSI.get_initial_conditions_device_model(
+    ::PSI.OperationModel,
+    model::PSI.DeviceModel{T, HybridFixedDA},
+) where {T <: PSY.HybridSystem} = model
+
+# Fallback for other AbstractHybridFormulation
+PSI.get_initial_conditions_device_model(
+    ::PSI.OperationModel,
+    ::PSI.DeviceModel{T, D},
+) where {T <: PSY.HybridSystem, D <: AbstractHybridFormulation} =
+    PSI.DeviceModel(T, HybridEnergyOnlyDispatch)
 
 PSI.get_multiplier_value(
     ::RenewablePowerTimeSeries,
