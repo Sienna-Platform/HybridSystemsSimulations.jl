@@ -22,7 +22,20 @@ function set_uc_models!(template_uc)
             attributes = Dict{String, Any}("cycling" => false),
         ),
     )
-    set_device_model!(template_uc, PSY.EnergyReservoirStorage, BookKeeping)
+    set_device_model!(
+        template_uc,
+        DeviceModel(
+            PSY.EnergyReservoirStorage,
+            StorageDispatchWithReserves;
+            attributes = Dict{String, Any}(
+                "reservation" => true,
+                "cycling_limits" => false,
+                "energy_target" => false,
+                "complete_coverage" => false,
+                "regularization" => true,
+            ),
+        ),
+    )
     set_service_model!(template_uc, ServiceModel(VariableReserve{ReserveUp}, RangeReserve))
     set_service_model!(
         template_uc,
