@@ -38,8 +38,8 @@
         simulation_folder = mktempdir(; cleanup = true),
     )
     build_out = build!(sim)
-    @test build_out == PSI.BuildStatus.BUILT
-    @test execute!(sim) == PSI.RunStatus.SUCCESSFUL
+    @test build_out == PSI.SimulationBuildStatus.BUILT
+    @test execute!(sim) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 end
 @testset "Test HybridSystem Simulation UC + ED" begin
     sys_uc = PSB.build_system(PSITestSystems, "c_sys5_hybrid_uc")
@@ -100,7 +100,39 @@ end
         simulation_folder = mktempdir(; cleanup = true),
     )
     build_out = build!(sim)
-    @test build_out == PSI.BuildStatus.BUILT
+    @test build_out == PSI.SimulationBuildStatus.BUILT
     execute_out = execute!(sim)
-    @test execute_out == PSI.RunStatus.SUCCESSFUL
+    @test execute_out == PSI.RunStatus.SUCCESSFULLY_FINALIZED
+end
+
+@testset "Test HybridSystem with StorageDispatchWithReserves (energy_target)" begin
+    # Test StorageDispatchWithReserves with energy_target attribute
+    template = get_template_standard_uc_simulation()
+    set_device_model!(
+        template,
+        DeviceModel(
+            PSY.HybridSystem,
+            HybridEnergyOnlyDispatch;
+            attributes = Dict{String, Any}("cycling" => false),
+        ),
+    )
+    set_device_model!(
+        template,
+        DeviceModel(
+            PSY.EnergyReservoirStorage,
+            StorageDispatchWithReserves;
+            attributes = Dict{String, Any}(
+                "reservation" => true,
+                "cycling_limits" => false,
+                "energy_target" => true,
+                "complete_coverage" => false,
+                "regularization" => false,
+            ),
+        ),
+    )
+    set_network_model!(template, NetworkModel(CopperPlatePowerModel; use_slacks = true))
+    sys = PSB.build_system(PSITestSystems, "c_sys5_hybrid_uc")
+    model = DecisionModel(template, sys; optimizer = HiGHS_optimizer, initialize_model = false)
+    @test build!(model; output_dir = mktempdir(; cleanup = true)) == PSI.ModelBuildStatus.BUILT
+    @test solve!(model) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 end

@@ -30,15 +30,15 @@
     )
 
     build_out = PSI.build!(m; output_dir = mktempdir(; cleanup = true))
-    @test build_out == PSI.BuildStatus.BUILT
+    @test build_out == PSI.ModelBuildStatus.BUILT
     solve_out = PSI.solve!(m)
-    @test solve_out == PSI.RunStatus.SUCCESSFUL
+    @test solve_out == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 
-    res = ProblemResults(m)
-    dic_res = get_variable_values(res)
+    res = PSI.OptimizationProblemResults(m)
+    dic_res = PSI.get_variable_values(res)
 
-    p_out = read_variable(res, "ActivePowerOutVariable__HybridSystem")[!, 2]
-    p_in = read_variable(res, "ActivePowerInVariable__HybridSystem")[!, 2]
+    p_out = PSI.read_variable(res, "ActivePowerOutVariable__HybridSystem")[!, 2]
+    p_in = PSI.read_variable(res, "ActivePowerInVariable__HybridSystem")[!, 2]
 
     @test length(p_out) == 48
     @test length(p_in) == 48
@@ -86,15 +86,15 @@ end
     )
 
     build_out = PSI.build!(m; output_dir = mktempdir(; cleanup = true))
-    @test build_out == PSI.BuildStatus.BUILT
+    @test build_out == PSI.ModelBuildStatus.BUILT
     solve_out = PSI.solve!(m)
-    @test solve_out == PSI.RunStatus.SUCCESSFUL
+    @test solve_out == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 
-    res = ProblemResults(m)
-    dic_res = get_variable_values(res)
+    res = PSI.OptimizationProblemResults(m)
+    dic_res = PSI.get_variable_values(res)
 
-    p_out = read_variable(res, "ActivePowerOutVariable__HybridSystem")[!, 2]
-    p_in = read_variable(res, "ActivePowerInVariable__HybridSystem")[!, 2]
+    p_out = PSI.read_variable(res, "ActivePowerOutVariable__HybridSystem")[!, 2]
+    p_in = PSI.read_variable(res, "ActivePowerInVariable__HybridSystem")[!, 2]
 
     @test length(p_out) == 48
     @test length(p_in) == 48
