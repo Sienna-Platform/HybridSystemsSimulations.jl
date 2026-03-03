@@ -77,9 +77,8 @@ cycling from previous horizons.
 **Input data:**
 
   - **Storage limits:** Initial values (when not updated from state) are computed from the
-    hybrid's storage using
-    [`PowerSystems.get_cycle_limits`](@extref PowerSystems.get_cycle_limits) and
-    [`PowerSystems.get_storage_level_limits`](@extref PowerSystems.get_storage_level_limits).
+    hybrid's storage using `PowerSystems.get_cycle_limits` and
+    `PowerSystems.get_storage_level_limits`.
   - **State updates:** In recurrent runs, values are updated from the simulation state
     (cumulative charge usage).
 """
@@ -95,10 +94,8 @@ Variable-value parameter for the storage discharging cycle limit:
 **Input data:**
 
   - Same as [`CyclingChargeLimitParameter`](@ref): initial values based on
-    [`PowerSystems.get_cycle_limits`](@extref PowerSystems.get_cycle_limits) and
-    [`PowerSystems.get_storage_level_limits`](@extref PowerSystems.get_storage_level_limits)
-    for the hybrid's storage; in recurrent runs, updated from state (cumulative discharge
-    usage).
+    `PowerSystems.get_cycle_limits` and `PowerSystems.get_storage_level_limits` for the
+    hybrid's storage; in recurrent runs, updated from state (cumulative discharge usage).
 """
 struct CyclingDischargeLimitParameter <: PSI.VariableValueParameter end
 

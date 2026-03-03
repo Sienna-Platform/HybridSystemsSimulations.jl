@@ -14,10 +14,7 @@ maximizes profit from energy (e.g. DA/RT spread) subject to internal asset limit
     required by the chosen device formulation (e.g. [`HybridEnergyOnlyDispatch`](@ref)).
   - **Time series:** For each hybrid, forecasts with default names
     `"RenewableDispatch__max_active_power"` (or `"RenewableDispatch__max_active_power_da"` for
-    day-ahead-only builds) for renewable capacity and `"PowerLoad__max_active_power"` for load,
-    or custom names configured when adding parameters. The canonical mapping from parameters to
-    time-series names is given by
-    [`PowerSimulations.get_default_time_series_names`](@extref PowerSimulations.get_default_time_series_names).
+    day-ahead-only builds) for renewable capacity and `"PowerLoad__max_active_power"` for load.
   - **System ext data:** Use the
     [`ext` supplemental data dictionary](@extref additional_fields) on
     [`PowerSystems.System`](@extref PowerSystems.System) with keys
@@ -27,8 +24,8 @@ maximizes profit from energy (e.g. DA/RT spread) subject to internal asset limit
     (defaults: the length of the corresponding `"DateTime"` column).
   - **Hybrid ext data:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
     should have its own [`ext` dictionary](@extref additional_fields) containing the same price
-    tables and horizon keys, typically copied from the system-level `ext` before constructing the
-    [`PowerSimulations.DecisionModel`](@extref PowerSimulations.DecisionModel).
+    tables and horizon keys, typically copied from the system-level `ext` before constructing a
+    `PowerSimulations.DecisionModel`.
 """
 struct MerchantHybridEnergyCase <: HybridDecisionProblem end
 
@@ -69,10 +66,6 @@ allocation in RT.
     [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) as in
     [`MerchantHybridEnergyCase`](@ref), plus per-service price tables for ancillary services
     (see [`AncillaryServicePrice`](@ref)).
-  - The canonical mapping from parameters to default time-series names can be obtained via
-    [`PowerSimulations.get_default_time_series_names`](@extref PowerSimulations.get_default_time_series_names)
-    and from the \"Time Series Names\" table printed by `show(model)` for an instantiated device
-    model.
 """
 struct MerchantHybridCooptimizerCase <: HybridDecisionProblem end
 

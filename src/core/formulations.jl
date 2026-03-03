@@ -83,35 +83,26 @@ or economic dispatch.
   - `RenewablePowerTimeSeries`: ``P^{*,\\text{re}}_t`` = renewable forecast at time ``t`` (default time series name: `"RenewableDispatch__max_active_power"`)
   - `ElectricLoadTimeSeries`: ``P^{\\text{ld}}_t`` = load consumption at time ``t`` (default time series name: `"PowerLoad__max_active_power"`)
 
-  The canonical mapping is given by
-  [`PowerSimulations.get_default_time_series_names`](@extref PowerSimulations.get_default_time_series_names)
-  for `PSY.HybridSystem` and `HybridDispatchWithReserves`.
-
 **Data requirements:**
 
   - **Device:** A [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) with at least
     one of: thermal unit (`PowerSystems.get_thermal_unit`), renewable unit
     (`PowerSystems.get_renewable_unit`), storage (`PowerSystems.get_storage`), and optionally
-    electric load (`PowerSystems.get_electric_load`). Static limits are read from these
-    subcomponents via the `PowerSystems.get_*` accessors listed below.
+    electric load (`PowerSystems.get_electric_load`).
   - **Time series:** Each hybrid must have forecast time series attached with the default names
     above (or custom names passed when adding parameters).
 
 **Static Parameters:**
 
-  - ``P_{\\max,\\text{pcc}}`` =
-    [`PowerSystems.get_output_active_power_limits`](@extref PowerSystems.get_output_active_power_limits)(device).max
-  - ``P_{\\max,\\text{th}}`` =
-    [`PowerSystems.get_active_power_limits`](@extref PowerSystems.get_active_power_limits)(thermal_unit).max
+  - ``P_{\\max,\\text{pcc}}`` = `PowerSystems.get_output_active_power_limits(device).max`
+  - ``P_{\\max,\\text{th}}`` = `PowerSystems.get_active_power_limits(thermal_unit).max`
   - ``P_{\\min,\\text{th}}`` = `PowerSystems.get_active_power_limits(thermal_unit).min`
-  - ``P_{\\max,\\text{ch}}`` =
-    [`PowerSystems.get_input_active_power_limits`](@extref PowerSystems.get_input_active_power_limits)(storage).max
-  - ``P_{\\max,\\text{ds}}`` =
-    [`PowerSystems.get_output_active_power_limits`](@extref PowerSystems.get_output_active_power_limits)(storage).max
-  - ``\\eta_{\\text{ch}}`` = [`PowerSystems.get_efficiency`](@extref PowerSystems.get_efficiency)(storage).in
+  - ``P_{\\max,\\text{ch}}`` = `PowerSystems.get_input_active_power_limits(storage).max`
+  - ``P_{\\max,\\text{ds}}`` = `PowerSystems.get_output_active_power_limits(storage).max`
+  - ``\\eta_{\\text{ch}}`` = `PowerSystems.get_efficiency(storage).in`
   - ``\\eta_{\\text{ds}}`` = `PowerSystems.get_efficiency(storage).out`
   - ``E_{\\max,\\text{st}}`` =
-    [`PowerSystems.get_storage_level_limits`](@extref PowerSystems.get_storage_level_limits)(storage).max × capacity
+    `PowerSystems.get_storage_level_limits(storage).max × capacity`
   - ``E^{\\text{st}}_0`` = initial storage energy
   - ``R^{*}_{p,t}`` = ancillary service deployment forecast for service ``p`` at time ``t``
   - ``F_p`` = fraction of ``P_{\\max,\\text{pcc}}`` allowed for service ``p``
@@ -261,35 +252,26 @@ and asset limits.
   - `RenewablePowerTimeSeries`: ``P^{*,\\text{re}}_t`` = renewable forecast at time ``t`` (default time series name: `"RenewableDispatch__max_active_power"`)
   - `ElectricLoadTimeSeries`: ``P^{\\text{ld}}_t`` = load consumption at time ``t`` (default time series name: `"PowerLoad__max_active_power"`)
 
-  The canonical mapping is given by
-  [`PowerSimulations.get_default_time_series_names`](@extref PowerSimulations.get_default_time_series_names)
-  for `PSY.HybridSystem` and `HybridEnergyOnlyDispatch`.
-
 **Data requirements:**
 
   - **Device:** A [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) with at least
     one of: thermal unit (`PowerSystems.get_thermal_unit`), renewable unit
     (`PowerSystems.get_renewable_unit`), storage (`PowerSystems.get_storage`), and optionally
-    electric load (`PowerSystems.get_electric_load`). Static limits are read from these
-    subcomponents via the `PowerSystems.get_*` accessors listed below.
+    electric load (`PowerSystems.get_electric_load`).
   - **Time series:** Each hybrid must have forecast time series attached with the default names
     above (or custom names passed when adding parameters).
 
 **Static Parameters:**
 
-  - ``P_{\\max,\\text{pcc}}`` =
-    [`PowerSystems.get_output_active_power_limits`](@extref PowerSystems.get_output_active_power_limits)(device).max
-  - ``P_{\\max,\\text{th}}`` =
-    [`PowerSystems.get_active_power_limits`](@extref PowerSystems.get_active_power_limits)(thermal_unit).max
+  - ``P_{\\max,\\text{pcc}}`` = `PowerSystems.get_output_active_power_limits(device).max`
+  - ``P_{\\max,\\text{th}}`` = `PowerSystems.get_active_power_limits(thermal_unit).max`
   - ``P_{\\min,\\text{th}}`` = `PowerSystems.get_active_power_limits(thermal_unit).min`
-  - ``P_{\\max,\\text{ch}}`` =
-    [`PowerSystems.get_input_active_power_limits`](@extref PowerSystems.get_input_active_power_limits)(storage).max
-  - ``P_{\\max,\\text{ds}}`` =
-    [`PowerSystems.get_output_active_power_limits`](@extref PowerSystems.get_output_active_power_limits)(storage).max
-  - ``\\eta_{\\text{ch}}`` = [`PowerSystems.get_efficiency`](@extref PowerSystems.get_efficiency)(storage).in
+  - ``P_{\\max,\\text{ch}}`` = `PowerSystems.get_input_active_power_limits(storage).max`
+  - ``P_{\\max,\\text{ds}}`` = `PowerSystems.get_output_active_power_limits(storage).max`
+  - ``\\eta_{\\text{ch}}`` = `PowerSystems.get_efficiency(storage).in`
   - ``\\eta_{\\text{ds}}`` = `PowerSystems.get_efficiency(storage).out`
   - ``E_{\\max,\\text{st}}`` =
-    [`PowerSystems.get_storage_level_limits`](@extref PowerSystems.get_storage_level_limits)(storage).max × capacity
+    `PowerSystems.get_storage_level_limits(storage).max × capacity`
   - ``E^{\\text{st}}_0`` = initial storage energy
 
 **Expressions:**
