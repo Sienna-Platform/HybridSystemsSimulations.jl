@@ -7,6 +7,15 @@ where ``s^{\\text{up}}_{\\text{reg},t}`` and ``s^{\\text{down}}_{\\text{reg},t}`
 ``C_{\\text{horizon}} \\times E_{\\max,\\text{st}}`` otherwise. Use with PowerSimulations' `add_feedforward!` in a
 [`PowerSimulations.DeviceModel`](@extref PowerSimulations.DeviceModel) for
 [`HybridDispatchWithReserves`](@ref) or [`HybridEnergyOnlyDispatch`](@ref).
+
+**Input data:**
+
+  - **Storage limits:** Limit supplied by [`CyclingChargeLimitParameter`](@ref), which is derived
+    from the hybrid's storage using
+    [`PowerSystems.get_cycle_limits`](@extref PowerSystems.get_cycle_limits) and
+    [`PowerSystems.get_storage_level_limits`](@extref PowerSystems.get_storage_level_limits).
+  - Not compatible with the device attribute `"cycling" => true` (cycling limits are then
+    enforced in the formulation).
 """
 struct CyclingChargeLimitFeedforward <: PSI.AbstractAffectFeedforward
     optimization_container_key::PSI.OptimizationContainerKey
@@ -51,6 +60,14 @@ Feedforward that enforces a cumulative discharging cycle limit on the hybrid's s
 where ``s^{\\text{up}}_{\\text{reg},t}`` and ``s^{\\text{down}}_{\\text{reg},t}`` denote served reserve (up/down). The limit comes from
 [`CyclingDischargeLimitParameter`](@ref) in recurrent runs. See
 [`CyclingChargeLimitFeedforward`](@ref) for usage pattern.
+
+**Input data:**
+
+  - Same as [`CyclingChargeLimitFeedforward`](@ref): limit from
+    [`CyclingDischargeLimitParameter`](@ref), derived from the hybrid's storage using
+    [`PowerSystems.get_cycle_limits`](@extref PowerSystems.get_cycle_limits) and
+    [`PowerSystems.get_storage_level_limits`](@extref PowerSystems.get_storage_level_limits).
+  - Not compatible with device attribute `"cycling" => true`.
 """
 struct CyclingDischargeLimitFeedforward <: PSI.AbstractAffectFeedforward
     optimization_container_key::PSI.OptimizationContainerKey

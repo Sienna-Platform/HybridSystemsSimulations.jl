@@ -6,6 +6,29 @@ abstract type HybridDecisionProblem <: PSI.DecisionProblem end
 Decision problem for a merchant hybrid resource that co-optimizes energy bids/offers
 in day-ahead and real-time markets only (no ancillary services). The hybrid optimizer
 maximizes profit from energy (e.g. DA/RT spread) subject to internal asset limits.
+
+**Data requirements:**
+
+  - **System:** A [`PowerSystems.System`](@extref PowerSystems.System) containing at least one
+    [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) with the subcomponents
+    required by the chosen device formulation (e.g. [`HybridEnergyOnlyDispatch`](@ref)).
+  - **Time series:** For each hybrid, forecasts with default names
+    `"RenewableDispatch__max_active_power"` (or `"RenewableDispatch__max_active_power_da"` for
+    day-ahead-only builds) for renewable capacity and `"PowerLoad__max_active_power"` for load,
+    or custom names configured when adding parameters. The canonical mapping from parameters to
+    time-series names is given by
+    [`PowerSimulations.get_default_time_series_names`](@extref PowerSimulations.get_default_time_series_names).
+  - **System ext data:** Use the
+    [`ext` supplemental data dictionary](@extref additional_fields) on
+    [`PowerSystems.System`](@extref PowerSystems.System) with keys
+    `\"λ_da_df\"` and `\"λ_rt_df\"`, each a `DataFrame` with column `"DateTime"` and one column
+    per bus name (matching `PowerSystems.get_name(PowerSystems.get_bus(hybrid))`). Optional
+    integer keys `\"horizon_DA\"` and `\"horizon_RT\"` override the number of DA/RT steps
+    (defaults: the length of the corresponding `"DateTime"` column).
+  - **Hybrid ext data:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
+    should have its own [`ext` dictionary](@extref additional_fields) containing the same price
+    tables and horizon keys, typically copied from the system-level `ext` before constructing the
+    [`PowerSimulations.DecisionModel`](@extref PowerSimulations.DecisionModel).
 """
 struct MerchantHybridEnergyCase <: HybridDecisionProblem end
 
@@ -14,6 +37,15 @@ struct MerchantHybridEnergyCase <: HybridDecisionProblem end
 
 Decision problem for a merchant hybrid with fixed day-ahead energy positions; used
 when solving the real-time subproblem with locked DA bids/offers.
+
+**Data requirements:**
+
+  - Same [`PowerSystems.System`](@extref PowerSystems.System),
+    [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem), and time-series
+    requirements as [`MerchantHybridEnergyCase`](@ref).
+  - Same use of the [`ext` supplemental data dictionary](@extref additional_fields) on the
+    system and hybrids: keys `\"λ_da_df\"`, `\"λ_rt_df\"`, and optional `\"horizon_DA\"`,
+    `\"horizon_RT\"` as described for [`MerchantHybridEnergyCase`](@ref).
 """
 struct MerchantHybridEnergyFixedDA <: HybridDecisionProblem end
 
@@ -24,6 +56,23 @@ Decision problem for a merchant hybrid that co-optimizes energy and ancillary se
 in day-ahead and real-time markets. Maximizes ``d'y - c_h' x`` (revenue from bids/offers minus operating cost) subject to
 market and asset constraints; ancillary services are committed in DA and fulfilled by internal asset
 allocation in RT.
+
+**Data requirements:**
+
+  - **System and time series:** As for [`MerchantHybridEnergyCase`](@ref). The problem template
+    must include a
+    [`PowerSimulations.DeviceModel`](@extref PowerSimulations.DeviceModel) constructed as
+    `DeviceModel(PSY.HybridSystem, HybridDispatchWithReserves)` (or another appropriate hybrid
+    formulation with reserves).
+  - **ext data:** Same use of the [`ext` supplemental data dictionary](@extref additional_fields)
+    on the [`PowerSystems.System`](@extref PowerSystems.System) and each
+    [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) as in
+    [`MerchantHybridEnergyCase`](@ref), plus per-service price tables for ancillary services
+    (see [`AncillaryServicePrice`](@ref)).
+  - The canonical mapping from parameters to default time-series names can be obtained via
+    [`PowerSimulations.get_default_time_series_names`](@extref PowerSimulations.get_default_time_series_names)
+    and from the \"Time Series Names\" table printed by `show(model)` for an instantiated device
+    model.
 """
 struct MerchantHybridCooptimizerCase <: HybridDecisionProblem end
 
@@ -32,7 +81,16 @@ struct MerchantHybridCooptimizerCase <: HybridDecisionProblem end
 
 Decision problem implementing a bilevel formulation for the merchant hybrid
 (e.g. upper level: bids/offers, lower level: internal dispatch); used for
-equilibrium or regulatory analysis. #TODO DOCS
+equilibrium or regulatory analysis.
+
+**Data requirements:**
+
+  - **System and time series:** Same as [`MerchantHybridEnergyCase`](@ref) (at least one
+    [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) with required forecasts and
+    time-series names).
+  - **ext data:** Same use of the [`ext` supplemental data dictionary](@extref additional_fields)
+    and keys `\"λ_da_df\"`, `\"λ_rt_df\"`, optional `\"horizon_DA\"`, `\"horizon_RT\"` on the
+    system and hybrids as in [`MerchantHybridEnergyCase`](@ref).
 """
 struct MerchantHybridBilevelCase <: HybridDecisionProblem end
 
