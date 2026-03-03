@@ -149,7 +149,7 @@ function add_hybrid_to_chuhsi_bus!(sys::System)
         output_active_power_limits = (min = 0.0, max = 10.0),
         reactive_power_limits = nothing,
     )
-    # Add Hybrid
+    # Add Hybrid (add_component! internally copies subcomponent time series to hybrid)
     add_component!(sys, hybrid)
     return
 end

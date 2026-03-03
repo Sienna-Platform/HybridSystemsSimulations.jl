@@ -9,11 +9,15 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
     # Resolution
-    RT_resolution = PSY.get_time_series_resolution(sys)
+    RT_resolution = first(PSY.get_time_series_resolutions(sys))
     Δt_DA = 1.0
     Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
-    PSI.init_optimization_container!(container, PSI.CopperPlatePowerModel, sys)
+    PSI.init_optimization_container!(
+        container,
+        PSI.get_network_model(PSI.get_template(decision_model)),
+        sys,
+    )
     PSI.init_model_store_params!(decision_model)
 
     # Create Multiple Time Horizons based on ext horizons
@@ -65,7 +69,8 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     end
 
     device_model = PSI.get_model(PSI.get_template(decision_model), PSY.HybridSystem)
-    device_formulation = PSI.get_formulation(device_model)
+    device_formulation =
+        device_model === nothing ? MerchantModelWithReserves : PSI.get_formulation(device_model)
     network_model = PSI.get_network_model(PSI.get_template(decision_model))
 
     ###############################
