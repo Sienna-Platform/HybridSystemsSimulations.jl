@@ -59,7 +59,6 @@ include(joinpath(PSI_DIR, "test/test_utils/model_checks.jl"))
 TEST_DIR = isempty(dirname(@__FILE__)) ? "test" : dirname(@__FILE__)
 include(joinpath(TEST_DIR, "test_utils/function_utils.jl"))
 include(joinpath(TEST_DIR, "test_utils/additional_templates.jl"))
-include(joinpath(TEST_DIR, "test_utils/price_generation_utils.jl"))
 
 """
 Copied @includetests from https://github.com/ssfrr/TestSetExtensions.jl.

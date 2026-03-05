@@ -34,9 +34,11 @@
     PSY.set_ext!(hy_sys, deepcopy(dic))
 
     # Set decision model for Optimizer
+    template = ProblemTemplate(CopperPlatePowerModel)
+    set_device_model!(template, DeviceModel(PSY.HybridSystem, HybridEnergyOnlyDispatch))
     decision_optimizer_DA = DecisionModel(
         MerchantHybridEnergyCase,
-        ProblemTemplate(CopperPlatePowerModel),
+        template,
         sys;
         optimizer = HiGHS_optimizer,
         calculate_conflict = true,
