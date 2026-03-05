@@ -69,8 +69,15 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     end
 
     device_model = PSI.get_model(PSI.get_template(decision_model), PSY.HybridSystem)
-    device_formulation =
-        device_model === nothing ? MerchantModelWithReserves : PSI.get_formulation(device_model)
+    if device_model === nothing
+        error(
+            "MerchantHybridCooptimizerCase requires a DeviceModel for HybridSystem in the " *
+            "ProblemTemplate. Call set_device_model!(template, DeviceModel(PSY.HybridSystem, " *
+            "HybridDispatchWithReserves)) or another appropriate hybrid formulation before " *
+            "constructing the DecisionModel.",
+        )
+    end
+    device_formulation = PSI.get_formulation(device_model)
     network_model = PSI.get_network_model(PSI.get_template(decision_model))
 
     ###############################
