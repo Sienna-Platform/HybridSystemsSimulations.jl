@@ -1,14 +1,5 @@
 @testset "Test HybridSystem OnlyEnergy DeviceModel" begin
-    ###############################
-    ######## Load Systems #########
-    ###############################
-
     sys_rts_da = build_system(PSISystems, "modified_RTS_GMLC_DA_sys")
-
-    # There is no Wind + Thermal in a Single Bus.
-    # We will try to pick the Wind in 317 bus Chuhsi
-    # It does not have thermal and load, so we will pick the adjacent bus 318: Clark
-    bus_to_add = "Chuhsi" # "Barton"
     modify_ren_curtailment_cost!(sys_rts_da)
     add_hybrid_to_chuhsi_bus!(sys_rts_da)
 
@@ -35,8 +26,6 @@
     @test solve_out == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 
     res = PSI.OptimizationProblemResults(m)
-    dic_res = PSI.get_variable_values(res)
-
     p_out = PSI.read_variable(res, "ActivePowerOutVariable__HybridSystem")[!, 2]
     p_in = PSI.read_variable(res, "ActivePowerInVariable__HybridSystem")[!, 2]
 
@@ -45,16 +34,7 @@
 end
 
 @testset "Test HybridSystem DispatchWithReserves DeviceModel" begin
-    ###############################
-    ######## Load Systems #########
-    ###############################
-
     sys_rts_da = build_system(PSISystems, "modified_RTS_GMLC_DA_sys")
-
-    # There is no Wind + Thermal in a Single Bus.
-    # We will try to pick the Wind in 317 bus Chuhsi
-    # It does not have thermal and load, so we will pick the adjacent bus 318: Clark
-    bus_to_add = "Chuhsi" # "Barton"
     modify_ren_curtailment_cost!(sys_rts_da)
     add_hybrid_to_chuhsi_bus!(sys_rts_da)
     hybrid = first(get_components(HybridSystem, sys_rts_da))
@@ -91,8 +71,6 @@ end
     @test solve_out == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 
     res = PSI.OptimizationProblemResults(m)
-    dic_res = PSI.get_variable_values(res)
-
     p_out = PSI.read_variable(res, "ActivePowerOutVariable__HybridSystem")[!, 2]
     p_in = PSI.read_variable(res, "ActivePowerInVariable__HybridSystem")[!, 2]
 

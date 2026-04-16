@@ -105,27 +105,17 @@ end
     @test execute_out == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 end
 
-@testset "Test HybridSystem with StorageDispatchWithReserves (energy_target)" begin
-    # Test StorageDispatchWithReserves with energy_target attribute
+@testset "Test HybridSystem embedded storage (energy_target)" begin
     template = get_template_standard_uc_simulation()
     set_device_model!(
         template,
         DeviceModel(
             PSY.HybridSystem,
             HybridEnergyOnlyDispatch;
-            attributes = Dict{String, Any}("cycling" => false),
-        ),
-    )
-    set_device_model!(
-        template,
-        DeviceModel(
-            PSY.EnergyReservoirStorage,
-            StorageDispatchWithReserves;
             attributes = Dict{String, Any}(
+                "cycling" => false,
                 "reservation" => true,
-                "cycling_limits" => false,
                 "energy_target" => true,
-                "complete_coverage" => false,
                 "regularization" => false,
             ),
         ),
