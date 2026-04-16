@@ -138,7 +138,7 @@ struct OptConditionBatteryDischarge <: PSI.ConstraintType end
     OptConditionEnergyVariable
 
 Constraint enforcing Karush-Kuhn-Tucker (KKT) stationarity for the energy variable at the point of common coupling (PCC) in the
-merchant model. #TODO DOCS
+merchant model.
 """
 struct OptConditionEnergyVariable <: PSI.ConstraintType end
 
