@@ -571,10 +571,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
             PSI.add_to_objective_variant_expression!(container, service_in_cost)
         end
         if !isnothing(dev.thermal_unit)
-            # Workaround to add ThermalCost with a Linear Cost Since the model doesn't include PWL cost
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            C_th_fix = three_cost.fixed # $/h
+            C_th_fix = get_thermal_fixed_cost_per_hour(dev)
             lin_cost_on_th = Δt_DA * C_th_fix * on_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_on_th)
         end

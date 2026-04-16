@@ -240,9 +240,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
         PSI.add_to_objective_variant_expression!(container, lin_cost_da_out)
         PSI.add_to_objective_variant_expression!(container, lin_cost_da_in)
         if !isnothing(dev.thermal_unit)
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            C_th_fix = three_cost.fixed # $/h
+            C_th_fix = get_thermal_fixed_cost_per_hour(dev)
             lin_cost_on_th = Δt_DA * C_th_fix * on_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_on_th)
         end
@@ -295,19 +293,20 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
             PSI.add_to_objective_variant_expression!(container, lin_cost_dart_out)
             PSI.add_to_objective_variant_expression!(container, lin_cost_dart_in)
             if !isnothing(dev.thermal_unit)
-                t_gen = dev.thermal_unit
-                three_cost = PSY.get_operation_cost(t_gen)
-                first_part = three_cost.variable[1]
-                second_part = three_cost.variable[2]
-                slope = (second_part[1] - first_part[1]) / (second_part[2] - first_part[2]) # $/MWh
-                C_th_var = slope * 100.0 # Multiply by 100 to transform to $/pu
+                C_th_var = get_thermal_marginal_cost_per_system_unit(container, dev, t)
                 lin_cost_p_th = Δt_RT * C_th_var * p_th[name, t]
                 PSI.add_to_objective_invariant_expression!(container, lin_cost_p_th)
             end
             if !isnothing(dev.storage)
-                VOM = dev.storage.operation_cost.variable.cost
-                lin_cost_p_ch = Δt_RT * VOM * p_ch[name, t]
-                lin_cost_p_ds = Δt_RT * VOM * p_ds[name, t]
+                storage_cost = PSY.get_operation_cost(dev.storage)
+                charge_vom = PSY.get_proportional_term(
+                    PSY.get_vom_cost(PSY.get_charge_variable_cost(storage_cost)),
+                )
+                discharge_vom = PSY.get_proportional_term(
+                    PSY.get_vom_cost(PSY.get_discharge_variable_cost(storage_cost)),
+                )
+                lin_cost_p_ch = Δt_RT * charge_vom * p_ch[name, t]
+                lin_cost_p_ds = Δt_RT * discharge_vom * p_ds[name, t]
                 PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ch)
                 PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ds)
             end
@@ -530,7 +529,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
             η_ch = storage.efficiency.in
             η_ds = storage.efficiency.out
             inv_η_ds = 1.0 / η_ds
-            E_min, E_max = PSY.get_state_of_charge_limits(storage)
+            E_max = PSY.get_storage_level_limits(storage).max
             constraint_cycling_charge[name] = JuMP.@constraint(
                 model,
                 inv_η_ds * Δt_RT * sum(p_ds[name, t] for t in T_rt) <= Cycles * E_max

@@ -255,6 +255,67 @@ function PSI.update_parameter_values!(
     return
 end
 
+"""
+During `Simulation` execution, PSI calls `_update_parameter_values!(..., ::ObjectiveFunctionParameter, ...)`
+from `update_cost_parameters.jl`, which uses `handle_variable_cost_parameter` with
+`PSY.get_operation_cost(component)`. Merchant hybrids use `MarketBidCost(nothing)` while prices
+live in `ext`; that generic path has no `MarketBidCost` method. Route simulation updates to the
+same ext-based logic as `update_parameter_values!(..., ::InMemoryDataset)`.
+"""
+function _merchant_hybrid_price_parameter_key(
+    container::PSI.OptimizationContainer,
+    parameter_array,
+    ::Type{P},
+) where {P <: Union{DayAheadEnergyPrice, RealTimeEnergyPrice}}
+    for (k, v) in PSI.get_parameters(container)
+        (k isa ISOPT.ParameterKey{P, PSY.HybridSystem}) || continue
+        if PSI.get_parameter_array(v) === parameter_array
+            return k
+        end
+    end
+    return nothing
+end
+
+function PSI._update_parameter_values!(
+    parameter_array::JuMP.Containers.DenseAxisArray{Float64, 2},
+    ::DayAheadEnergyPrice,
+    parameter_multiplier::JuMP.Containers.DenseAxisArray{Float64, 2},
+    attributes::PSI.CostFunctionAttributes,
+    ::Type{PSY.HybridSystem},
+    model::PSI.DecisionModel{T},
+    input::PSI.DatasetContainer{PSI.InMemoryDataset},
+) where {T <: HybridDecisionProblem}
+    container = PSI.get_optimization_container(model)
+    key = _merchant_hybrid_price_parameter_key(container, parameter_array, DayAheadEnergyPrice)
+    if key === nothing
+        error(
+            "Could not match DayAheadEnergyPrice parameter array to a registered HybridSystem parameter key",
+        )
+    end
+    _update_parameter_values!(model, key)
+    return
+end
+
+function PSI._update_parameter_values!(
+    parameter_array::JuMP.Containers.DenseAxisArray{Float64, 2},
+    ::RealTimeEnergyPrice,
+    parameter_multiplier::JuMP.Containers.DenseAxisArray{Float64, 2},
+    attributes::PSI.CostFunctionAttributes,
+    ::Type{PSY.HybridSystem},
+    model::PSI.DecisionModel{T},
+    input::PSI.DatasetContainer{PSI.InMemoryDataset},
+) where {T <: HybridDecisionProblem}
+    container = PSI.get_optimization_container(model)
+    key = _merchant_hybrid_price_parameter_key(container, parameter_array, RealTimeEnergyPrice)
+    if key === nothing
+        error(
+            "Could not match RealTimeEnergyPrice parameter array to a registered HybridSystem parameter key",
+        )
+    end
+    _update_parameter_values!(model, key)
+    return
+end
+
 function _update_parameter_values!(
     model::PSI.DecisionModel{T},
     key::PSI.ParameterKey{DayAheadEnergyPrice, PSY.HybridSystem},
@@ -278,6 +339,7 @@ function _update_parameter_values!(
             # Since the DA variables are hourly, this will revert the dt multiplication
             PSI._set_param_value!(parameter_array, value * 1.0 * 100.0, name, t)
             PSI.update_variable_cost!(
+                DayAheadEnergyPrice(),
                 container,
                 parameter_array,
                 parameter_multiplier,
@@ -293,6 +355,14 @@ end
 # The definition of these two methods is required because of the two resolutions used
 # in the model. Updating the real-time price requires using the mapping. Normally we don't
 # want to expose this level of detail to users wanting to make extensions
+function _merchant_real_time_price_variable_type(meta::String)
+    meta == string(nameof(EnergyDABidOut)) && return EnergyDABidOut
+    meta == string(nameof(EnergyDABidIn)) && return EnergyDABidIn
+    meta == string(nameof(EnergyRTBidOut)) && return EnergyRTBidOut
+    meta == string(nameof(EnergyRTBidIn)) && return EnergyRTBidIn
+    error("Unknown RealTimeEnergyPrice parameter meta: $(repr(meta))")
+end
+
 function _update_parameter_values!(
     model::PSI.DecisionModel{T},
     key::PSI.ParameterKey{RealTimeEnergyPrice, PSY.HybridSystem},
@@ -304,8 +374,8 @@ function _update_parameter_values!(
     parameter_array = PSI.get_parameter_array(container, key)
     attributes = PSI.get_parameter_attributes(container, key)
     components = PSI.get_available_components(PSY.HybridSystem, PSI.get_system(model))
-    variable =
-        PSI.get_variable(container, PSI.get_variable_type(attributes)(), PSY.HybridSystem)
+    Vtype = _merchant_real_time_price_variable_type(key.meta)
+    variable = PSI.get_variable(container, Vtype(), PSY.HybridSystem)
     parameter_multiplier = PSI.get_parameter_multiplier_array(container, key)
     for component in components
         ext = PSY.get_ext(component)
@@ -319,7 +389,7 @@ function _update_parameter_values!(
             mul_ = parameter_multiplier[name, t] * 100.0
             _val = value * dt * mul_
             PSI._set_param_value!(parameter_array, _val, name, t)
-            if PSI.get_variable_type(attributes) ∈ (EnergyDABidOut, EnergyDABidIn)
+            if Vtype ∈ (EnergyDABidOut, EnergyDABidIn)
                 hy_cost = -variable[name, tmap[t]] * _val
             else
                 hy_cost = variable[name, t] * _val

@@ -47,7 +47,7 @@ function add_battery_to_bus!(sys::System, bus_name::String)
     return
 end
 
-function add_hybrid_to_chuhsi_bus!(sys::System)
+function add_hybrid_to_chuhsi_bus!(sys::System; horizon_rt_steps::Union{Nothing, Int} = nothing)
     bus = get_component(Bus, sys, "Chuhsi")
     bat = _build_battery(bus, 4.0, 2.0, 0.93, 0.93)
     # Wind is taken from Bus 317: Chuhsi
@@ -83,35 +83,49 @@ function add_hybrid_to_chuhsi_bus!(sys::System)
     add_component!(sys, hybrid)
     # Ensure DA-named time series exists so merchant decision models that request
     # "RenewableDispatch__max_active_power_da" (DA path) find metadata on the hybrid.
-    _add_hybrid_renewable_da_time_series!(sys, hybrid)
+    _add_hybrid_renewable_da_time_series!(sys, hybrid; horizon_rt_steps = horizon_rt_steps)
     return
 end
 
-function _add_hybrid_renewable_da_time_series!(sys::PSY.System, hybrid::PSY.HybridSystem)
+function _add_hybrid_renewable_da_time_series!(
+    sys::PSY.System,
+    hybrid::PSY.HybridSystem;
+    horizon_rt_steps::Union{Nothing, Int} = nothing,
+)
     try
-        ts = PSY.get_time_series(IS.SingleTimeSeries, hybrid, "RenewableDispatch__max_active_power")
+        ts = PSY.get_time_series(
+            IS.SingleTimeSeries,
+            hybrid,
+            "RenewableDispatch__max_active_power",
+        )
         single_da = IS.SingleTimeSeries(ts, "RenewableDispatch__max_active_power_da")
         PSY.add_time_series!(sys, hybrid, single_da)
     catch
         nothing
     end
 
-    # Use a horizon long enough to cover the
-    # decision model window (e.g. 48 steps at 5-min = 4 hours); otherwise get_window
-    # fails in smoke testswith "timestamp not within" when the model requests 4 hours of data.
+    # Force deterministic windows to exactly match the merchant RT horizon request
+    # when provided (instead of only "at least as long"), so simulation updates
+    # don't request out-of-window ranges.
     try
         ts_det = PSY.get_time_series(
             IS.DeterministicSingleTimeSeries,
             hybrid,
             "RenewableDispatch__max_active_power",
         )
-        horizon = IS.get_horizon(ts_det)
-        interval = IS.get_interval(ts_det)
         resolution = IS.get_resolution(ts_det)
-        if resolution == Dates.Minute(5) && horizon < Dates.Hour(4)
-            horizon = Dates.Hour(4)
-        end
-        PSY.transform_single_time_series!(sys, horizon, interval; resolution = resolution)
+        interval = IS.get_interval(ts_det)
+        current_horizon = IS.get_horizon(ts_det)
+
+        target_horizon =
+            isnothing(horizon_rt_steps) ? current_horizon : (horizon_rt_steps * resolution)
+
+        PSY.transform_single_time_series!(
+            sys,
+            target_horizon,
+            interval;
+            resolution = resolution,
+        )
     catch
         nothing
     end

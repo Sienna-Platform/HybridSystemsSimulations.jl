@@ -2666,13 +2666,8 @@ function add_constraints!(
     jm = PSI.get_jump_model(container)
     for dev in devices
         n = PSY.get_name(dev)
-        t_gen = dev.thermal_unit
-        three_cost = PSY.get_operation_cost(t_gen)
-        first_part = three_cost.variable[1]
-        second_part = three_cost.variable[2]
-        slope = (second_part[1] - first_part[1]) / (second_part[2] - first_part[2]) # $/MWh
-        C_th_var = slope * 100.0 # Multiply by 100 to transform to $/pu
         for t in time_steps
+            C_th_var = get_thermal_marginal_cost_per_system_unit(container, dev, t)
             # Written to match latex model
             con[n, t] = JuMP.@constraint(
                 jm,
