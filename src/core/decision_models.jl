@@ -12,20 +12,33 @@ maximizes profit from energy (e.g. DA/RT spread) subject to internal asset limit
   - **System:** A [`PowerSystems.System`](@extref PowerSystems.System) containing at least one
     [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) with the subcomponents
     required by the chosen device formulation (e.g. [`HybridEnergyOnlyDispatch`](@ref)).
-  - **Time series:** For each hybrid, forecasts with default names
-    `"RenewableDispatch__max_active_power"` (or `"RenewableDispatch__max_active_power_da"` for
-    day-ahead-only builds) for renewable capacity and `"PowerLoad__max_active_power"` for load.
-  - **System ext data:** Use the
+  - **Time series:** Default names:
+
+    | Parameter | Default Time Series Name |
+    | :--- | :--- |
+    | `RenewablePowerTimeSeries` | `"RenewableDispatch__max_active_power"` |
+    | `RenewablePowerTimeSeries` (day-ahead-only merchant builds) | `"RenewableDispatch__max_active_power_da"` |
+    | `ElectricLoadTimeSeries` | `"PowerLoad__max_active_power"` |
+  - **System ext data:** Keys in the
     [`ext` supplemental data dictionary](@extref additional_fields) on
-    [`PowerSystems.System`](@extref PowerSystems.System) with keys
-    `\"λ_da_df\"` and `\"λ_rt_df\"`, each a `DataFrame` with column `"DateTime"` and one column
-    per bus name (matching `PowerSystems.get_name(PowerSystems.get_bus(hybrid))`). Optional
-    integer keys `\"horizon_DA\"` and `\"horizon_RT\"` override the number of DA/RT steps
-    (defaults: the length of the corresponding `"DateTime"` column).
+    [`PowerSystems.System`](@extref PowerSystems.System):
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | System-level DA table used primarily for its `"DateTime"` axis when deriving horizon windows; bus-price columns are not used for objective pricing. |
+    | `"λ_rt_df"` | Yes | System-level RT table used primarily for its `"DateTime"` axis when deriving horizon windows; bus-price columns are not used for objective pricing. |
+    | `"horizon_DA"` | Optional | DA index length used during model build; defaults to `length(ext["λ_da_df"][!, "DateTime"])` when omitted. |
+    | `"horizon_RT"` | Optional | RT index length used during model build; defaults to `length(ext["λ_rt_df"][!, "DateTime"])` when omitted. |
+
   - **Hybrid ext data:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
-    should have its own [`ext` dictionary](@extref additional_fields) containing the same price
-    tables and horizon keys, typically copied from the system-level `ext` before constructing a
-    `PowerSimulations.DecisionModel`.
+    has its own [`ext` dictionary](@extref additional_fields) with the same keys:
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | Hybrid-level DA price table used for bus-level objective prices and rolling parameter updates. |
+    | `"λ_rt_df"` | Yes | Hybrid-level RT price table used for bus-level objective prices and rolling parameter updates. |
+    | `"horizon_DA"` | Yes (current implementation) | DA parameter time-step dimension used in parameter construction and updates; also referenced in reserve-assignment constraint logic (e.g., `horizon_DA == 24`). |
+    | `"horizon_RT"` | Yes (current implementation) | RT parameter time-step dimension used in parameter construction and updates. |
 """
 struct MerchantHybridEnergyCase <: HybridDecisionProblem end
 
@@ -40,9 +53,23 @@ when solving the real-time subproblem with locked DA bids/offers.
   - Same [`PowerSystems.System`](@extref PowerSystems.System),
     [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem), and time-series
     requirements as [`MerchantHybridEnergyCase`](@ref).
-  - Same use of the [`ext` supplemental data dictionary](@extref additional_fields) on the
-    system and hybrids: keys `\"λ_da_df\"`, `\"λ_rt_df\"`, and optional `\"horizon_DA\"`,
-    `\"horizon_RT\"` as described for [`MerchantHybridEnergyCase`](@ref).
+  - **System ext data:** Same key requirements as [`MerchantHybridEnergyCase`](@ref):
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | System-level DA table used primarily for its `"DateTime"` axis when deriving horizon windows. |
+    | `"λ_rt_df"` | Yes | System-level RT table used primarily for its `"DateTime"` axis when deriving horizon windows. |
+    | `"horizon_DA"` | Optional | DA index length used during model build; defaults to table length when omitted. |
+    | `"horizon_RT"` | Optional | RT index length used during model build; defaults to table length when omitted. |
+
+  - **Hybrid ext data:** Same key requirements as [`MerchantHybridEnergyCase`](@ref):
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | Hybrid-level DA price table used for bus-level objective prices and rolling parameter updates. |
+    | `"λ_rt_df"` | Yes | Hybrid-level RT price table used for bus-level objective prices and rolling parameter updates. |
+    | `"horizon_DA"` | Yes (current implementation) | DA parameter time-step dimension used in parameter construction and updates; also referenced in reserve-assignment constraint logic (e.g., `horizon_DA == 24`). |
+    | `"horizon_RT"` | Yes (current implementation) | RT parameter time-step dimension used in parameter construction and updates. |
 """
 struct MerchantHybridEnergyFixedDA <: HybridDecisionProblem end
 
@@ -56,16 +83,36 @@ allocation in RT.
 
 **Data requirements:**
 
-  - **System and time series:** As for [`MerchantHybridEnergyCase`](@ref). The problem template
-    must include a
+  - **System:** As for [`MerchantHybridEnergyCase`](@ref). The problem template must include a
     [`PowerSimulations.DeviceModel`](@extref PowerSimulations.DeviceModel) constructed as
     `DeviceModel(PSY.HybridSystem, HybridDispatchWithReserves)` (or another appropriate hybrid
     formulation with reserves).
-  - **ext data:** Same use of the [`ext` supplemental data dictionary](@extref additional_fields)
-    on the [`PowerSystems.System`](@extref PowerSystems.System) and each
-    [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) as in
-    [`MerchantHybridEnergyCase`](@ref), plus per-service price tables for ancillary services
-    (see [`AncillaryServicePrice`](@ref)).
+  - **Time series:** Default names:
+
+    | Parameter | Default Time Series Name |
+    | :--- | :--- |
+    | `RenewablePowerTimeSeries` | `"RenewableDispatch__max_active_power"` |
+    | `RenewablePowerTimeSeries` (day-ahead-only merchant builds) | `"RenewableDispatch__max_active_power_da"` |
+    | `ElectricLoadTimeSeries` | `"PowerLoad__max_active_power"` |
+  - **System ext data:** Same key requirements as [`MerchantHybridEnergyCase`](@ref):
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | System-level DA table used primarily for its `"DateTime"` axis when deriving horizon windows. |
+    | `"λ_rt_df"` | Yes | System-level RT table used primarily for its `"DateTime"` axis when deriving horizon windows. |
+    | `"horizon_DA"` | Optional | DA index length used during model build; defaults to table length when omitted. |
+    | `"horizon_RT"` | Optional | RT index length used during model build; defaults to table length when omitted. |
+
+  - **Hybrid ext data:** Keys in each hybrid's
+    [`ext` dictionary](@extref additional_fields):
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | Hybrid-level DA energy price table used for bus-level objective prices and rolling parameter updates. |
+    | `"λ_rt_df"` | Yes | Hybrid-level RT energy price table used for bus-level objective prices and rolling parameter updates. |
+    | `"horizon_DA"` | Yes (current implementation) | DA parameter time-step dimension used in parameter construction and updates; also referenced in reserve-assignment constraint logic (e.g., `horizon_DA == 24`). |
+    | `"horizon_RT"` | Yes (current implementation) | RT parameter time-step dimension used in parameter construction and updates. |
+    | `"λ_<service_name>"` | Yes (per attached service) | Ancillary-service DA price table for each attached service (e.g., `"λ_Regulation_Up"`), used in objective pricing with `"DateTime"` and bus columns. |
 """
 struct MerchantHybridCooptimizerCase <: HybridDecisionProblem end
 
@@ -78,12 +125,33 @@ equilibrium or regulatory analysis.
 
 **Data requirements:**
 
-  - **System and time series:** Same as [`MerchantHybridEnergyCase`](@ref) (at least one
-    [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) with required forecasts and
-    time-series names).
-  - **ext data:** Same use of the [`ext` supplemental data dictionary](@extref additional_fields)
-    and keys `\"λ_da_df\"`, `\"λ_rt_df\"`, optional `\"horizon_DA\"`, `\"horizon_RT\"` on the
-    system and hybrids as in [`MerchantHybridEnergyCase`](@ref).
+  - **System:** Same as [`MerchantHybridEnergyCase`](@ref) (at least one
+    [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem) with required forecasts).
+  - **Time series:** Default names:
+
+    | Parameter | Default Time Series Name |
+    | :--- | :--- |
+    | `RenewablePowerTimeSeries` | `"RenewableDispatch__max_active_power"` |
+    | `RenewablePowerTimeSeries` (day-ahead-only merchant builds) | `"RenewableDispatch__max_active_power_da"` |
+    | `ElectricLoadTimeSeries` | `"PowerLoad__max_active_power"` |
+  - **System ext data:** Same key requirements as [`MerchantHybridEnergyCase`](@ref):
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | System-level DA table used primarily for its `"DateTime"` axis when deriving horizon windows. |
+    | `"λ_rt_df"` | Yes | System-level RT table used primarily for its `"DateTime"` axis when deriving horizon windows. |
+    | `"horizon_DA"` | Optional | DA index length used during model build; defaults to table length when omitted. |
+    | `"horizon_RT"` | Optional | RT index length used during model build; defaults to table length when omitted. |
+
+  - **Hybrid ext data:** Keys in each hybrid's
+    [`ext` dictionary](@extref additional_fields):
+
+    | Key | Required | Description |
+    | :--- | :--- | :--- |
+    | `"λ_da_df"` | Yes | Hybrid-level DA energy price table used for bus-level objective prices and rolling parameter updates. |
+    | `"λ_rt_df"` | Yes | Hybrid-level RT energy price table used for bus-level objective prices and rolling parameter updates. |
+    | `"horizon_DA"` | Yes (current implementation) | DA parameter time-step dimension used in parameter construction and updates; also referenced in reserve-assignment constraint logic (e.g., `horizon_DA == 24`). |
+    | `"horizon_RT"` | Yes (current implementation) | RT parameter time-step dimension used in parameter construction and updates. |
 """
 struct MerchantHybridBilevelCase <: HybridDecisionProblem end
 

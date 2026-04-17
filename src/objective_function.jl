@@ -255,10 +255,10 @@ _extract_first_numeric_value(value) =
         Float64(first(getproperty(value, :values)))
     else
         throw(
-        ArgumentError(
-            "Unable to extract scalar fuel cost from $(typeof(value)); expected Number or array-like values.",
-        ),
-    )
+            ArgumentError(
+                "Unable to extract scalar fuel cost from $(typeof(value)); expected Number or array-like values.",
+            ),
+        )
     end
 
 _time_step_datetime(container::PSI.OptimizationContainer, t::Int) =

@@ -80,8 +80,10 @@ or economic dispatch.
 
 **Time Series Parameters:**
 
-  - `RenewablePowerTimeSeries`: ``P^{*,\\text{re}}_t`` = renewable forecast at time ``t`` (default time series name: `"RenewableDispatch__max_active_power"`)
-  - `ElectricLoadTimeSeries`: ``P^{\\text{ld}}_t`` = load consumption at time ``t`` (default time series name: `"PowerLoad__max_active_power"`)
+| Parameter | Default Time Series Name |
+| :--- | :--- |
+| `RenewablePowerTimeSeries` | `"RenewableDispatch__max_active_power"` |
+| `ElectricLoadTimeSeries` | `"PowerLoad__max_active_power"` |
 
 **Data requirements:**
 
@@ -249,8 +251,10 @@ and asset limits.
 
 **Time Series Parameters:**
 
-  - `RenewablePowerTimeSeries`: ``P^{*,\\text{re}}_t`` = renewable forecast at time ``t`` (default time series name: `"RenewableDispatch__max_active_power"`)
-  - `ElectricLoadTimeSeries`: ``P^{\\text{ld}}_t`` = load consumption at time ``t`` (default time series name: `"PowerLoad__max_active_power"`)
+| Parameter | Default Time Series Name |
+| :--- | :--- |
+| `RenewablePowerTimeSeries` | `"RenewableDispatch__max_active_power"` |
+| `ElectricLoadTimeSeries` | `"PowerLoad__max_active_power"` |
 
 **Data requirements:**
 

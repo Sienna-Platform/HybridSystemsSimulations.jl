@@ -17,11 +17,13 @@ Docs abbreviation: ``\\Pi^*_{\\text{DA},t}`` (USD/MWh). Used in the merchant obj
 
   - **System ext:** The [`ext` supplemental data dictionary](@extref additional_fields) on
     [`PowerSystems.System`](@extref PowerSystems.System) must contain `\"λ_da_df\"`, a
-    `DataFrame` with column `"DateTime"` and one column per bus name, and optionally
-    `\"horizon_DA\"::Int` giving the number of day-ahead steps.
+    `DataFrame` with column `"DateTime"` and one column per bus name. `\"horizon_DA\"::Int`
+    is optional and, when absent, defaults to the `"DateTime"` length.
   - **Hybrid ext:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
-    reads the same keys from its own [`ext` dictionary](@extref additional_fields); values are
-    sliced starting at the current forecast time and used over the model horizon.
+    reads the same keys from its own [`ext` dictionary](@extref additional_fields). In current
+    implementation, `\"horizon_DA\"` is expected in hybrid `ext` for parameter construction and
+    updates; values are sliced from `\"λ_da_df\"` starting at the current forecast time and used
+    over the model horizon.
 """
 struct DayAheadEnergyPrice <: PSI.ObjectiveFunctionParameter end
 
@@ -37,12 +39,13 @@ expression for RT energy and DART spread.
 
   - **System ext:** The [`ext` supplemental data dictionary](@extref additional_fields) on
     [`PowerSystems.System`](@extref PowerSystems.System) must contain `\"λ_rt_df\"`, a
-    `DataFrame` with column `"DateTime"` and one column per bus name, and optionally
-    `\"horizon_RT\"::Int` giving the number of real-time steps.
+    `DataFrame` with column `"DateTime"` and one column per bus name. `\"horizon_RT\"::Int`
+    is optional and, when absent, defaults to the `"DateTime"` length.
   - **Hybrid ext:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
     reads `\"λ_rt_df\"`, `\"horizon_RT\"`, and a mapping `\"tmap\"` from its own
-    [`ext` dictionary](@extref additional_fields), used to align real-time steps to day-ahead
-    steps where needed.
+    [`ext` dictionary](@extref additional_fields). In current implementation, `\"horizon_RT\"`
+    is expected in hybrid `ext` for parameter construction and updates; `\"tmap\"` aligns
+    real-time steps to day-ahead steps where needed.
 """
 struct RealTimeEnergyPrice <: PSI.ObjectiveFunctionParameter end
 

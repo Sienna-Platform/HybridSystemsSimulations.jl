@@ -18,7 +18,7 @@ make_tutorials()
 
 pages = OrderedDict(
     "Welcome Page" => "index.md",
-    "Tutorials" => Any[],
+    # "Tutorials" => Any[],
     "Reference" => Any[
         "Public API" => "api/public.md",
         "Internals" => "api/internal.md",
