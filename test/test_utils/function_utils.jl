@@ -3,7 +3,6 @@ using TimeSeries
 function modify_ren_curtailment_cost!(sys)
     rdispatch = get_components(RenewableDispatch, sys)
     for ren in rdispatch
-        # We consider 15 $/MWh as a reasonable cost for renewable curtailment
         cost = PSY.RenewableGenerationCost(nothing)
         set_operation_cost!(ren, cost)
     end
