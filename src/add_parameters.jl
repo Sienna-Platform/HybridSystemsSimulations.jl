@@ -16,7 +16,7 @@ function _add_time_series_parameters(
     initial_values = Dict{String, AbstractArray}()
     for device in devices
         push!(device_names, PSY.get_name(device))
-        ts_uuid = PSI.get_time_series_uuid(ts_type, device, ts_name)
+        ts_uuid = string(IS.get_time_series_uuid(ts_type, device, ts_name))
         if !(ts_uuid in keys(initial_values))
             initial_values[ts_uuid] =
                 PSI.get_time_series_initial_values!(container, ts_type, device, ts_name)
@@ -31,6 +31,7 @@ function _add_time_series_parameters(
         ts_name,
         collect(keys(initial_values)),
         device_names,
+        (),  # additional_axes: no extra axes for RenewablePowerTimeSeries
         time_steps,
     )
     jump_model = PSI.get_jump_model(container)
@@ -50,7 +51,7 @@ function _add_time_series_parameters(
         PSI.add_component_name!(
             PSI.get_attributes(param_container),
             name,
-            PSI.get_time_series_uuid(ts_type, device, ts_name),
+            string(IS.get_time_series_uuid(ts_type, device, ts_name)),
         )
     end
     return
@@ -85,13 +86,13 @@ function _add_price_time_series_parameters(
             container,
             param,
             PSY.HybridSystem,
-            var,
+            (var,),
             PSI.SOSStatusVariable.NO_VARIABLE,
             false,
             Float64,
             device_names,
             time_steps;
-            meta="$var",
+            meta = "$var",
         )
 
         for device in devices
@@ -143,13 +144,13 @@ function _add_price_time_series_parameters(
                 container,
                 param,
                 PSY.HybridSystem,
-                var,
+                (var,),
                 PSI.SOSStatusVariable.NO_VARIABLE,
                 false,
                 Float64,
                 device_names,
                 time_steps;
-                meta="$(var)_$(service_name)",
+                meta = "$(var)_$(service_name)",
             )
 
             for device in devices
@@ -183,7 +184,7 @@ function add_time_series_parameters!(
     container::PSI.OptimizationContainer,
     param::RenewablePowerTimeSeries,
     devices::Vector{PSY.HybridSystem},
-    ts_name="RenewableDispatch__max_active_power",
+    ts_name = "RenewableDispatch__max_active_power",
 )
     _add_time_series_parameters(container, ts_name, param, devices)
 end
@@ -192,7 +193,7 @@ function add_time_series_parameters!(
     container::PSI.OptimizationContainer,
     param::ElectricLoadTimeSeries,
     devices::Vector{PSY.HybridSystem},
-    ts_name="PowerLoad__max_active_power",
+    ts_name = "PowerLoad__max_active_power",
 )
     _add_time_series_parameters(container, ts_name, param, devices)
     return
@@ -254,6 +255,75 @@ function PSI.update_parameter_values!(
     return
 end
 
+"""
+During `Simulation` execution, PSI calls `_update_parameter_values!(..., ::ObjectiveFunctionParameter, ...)`
+from `update_cost_parameters.jl`, which uses `handle_variable_cost_parameter` with
+`PSY.get_operation_cost(component)`. Merchant hybrids use `MarketBidCost(nothing)` while prices
+live in `ext`; that generic path has no `MarketBidCost` method. Route simulation updates to the
+same ext-based logic as `update_parameter_values!(..., ::InMemoryDataset)`.
+"""
+function _merchant_hybrid_price_parameter_key(
+    container::PSI.OptimizationContainer,
+    parameter_array,
+    ::Type{P},
+) where {P <: Union{DayAheadEnergyPrice, RealTimeEnergyPrice}}
+    for (k, v) in PSI.get_parameters(container)
+        (k isa ISOPT.ParameterKey{P, PSY.HybridSystem}) || continue
+        if PSI.get_parameter_array(v) === parameter_array
+            return k
+        end
+    end
+    return nothing
+end
+
+function PSI._update_parameter_values!(
+    parameter_array::JuMP.Containers.DenseAxisArray{Float64, 2},
+    ::DayAheadEnergyPrice,
+    parameter_multiplier::JuMP.Containers.DenseAxisArray{Float64, 2},
+    attributes::PSI.CostFunctionAttributes,
+    ::Type{PSY.HybridSystem},
+    model::PSI.DecisionModel{T},
+    input::PSI.DatasetContainer{PSI.InMemoryDataset},
+) where {T <: HybridDecisionProblem}
+    container = PSI.get_optimization_container(model)
+    key = _merchant_hybrid_price_parameter_key(
+        container,
+        parameter_array,
+        DayAheadEnergyPrice,
+    )
+    if key === nothing
+        error(
+            "Could not match DayAheadEnergyPrice parameter array to a registered HybridSystem parameter key",
+        )
+    end
+    _update_parameter_values!(model, key)
+    return
+end
+
+function PSI._update_parameter_values!(
+    parameter_array::JuMP.Containers.DenseAxisArray{Float64, 2},
+    ::RealTimeEnergyPrice,
+    parameter_multiplier::JuMP.Containers.DenseAxisArray{Float64, 2},
+    attributes::PSI.CostFunctionAttributes,
+    ::Type{PSY.HybridSystem},
+    model::PSI.DecisionModel{T},
+    input::PSI.DatasetContainer{PSI.InMemoryDataset},
+) where {T <: HybridDecisionProblem}
+    container = PSI.get_optimization_container(model)
+    key = _merchant_hybrid_price_parameter_key(
+        container,
+        parameter_array,
+        RealTimeEnergyPrice,
+    )
+    if key === nothing
+        error(
+            "Could not match RealTimeEnergyPrice parameter array to a registered HybridSystem parameter key",
+        )
+    end
+    _update_parameter_values!(model, key)
+    return
+end
+
 function _update_parameter_values!(
     model::PSI.DecisionModel{T},
     key::PSI.ParameterKey{DayAheadEnergyPrice, PSY.HybridSystem},
@@ -277,6 +347,7 @@ function _update_parameter_values!(
             # Since the DA variables are hourly, this will revert the dt multiplication
             PSI._set_param_value!(parameter_array, value * 1.0 * 100.0, name, t)
             PSI.update_variable_cost!(
+                DayAheadEnergyPrice(),
                 container,
                 parameter_array,
                 parameter_multiplier,
@@ -292,6 +363,14 @@ end
 # The definition of these two methods is required because of the two resolutions used
 # in the model. Updating the real-time price requires using the mapping. Normally we don't
 # want to expose this level of detail to users wanting to make extensions
+function _merchant_real_time_price_variable_type(meta::String)
+    meta == string(nameof(EnergyDABidOut)) && return EnergyDABidOut
+    meta == string(nameof(EnergyDABidIn)) && return EnergyDABidIn
+    meta == string(nameof(EnergyRTBidOut)) && return EnergyRTBidOut
+    meta == string(nameof(EnergyRTBidIn)) && return EnergyRTBidIn
+    error("Unknown RealTimeEnergyPrice parameter meta: $(repr(meta))")
+end
+
 function _update_parameter_values!(
     model::PSI.DecisionModel{T},
     key::PSI.ParameterKey{RealTimeEnergyPrice, PSY.HybridSystem},
@@ -303,8 +382,8 @@ function _update_parameter_values!(
     parameter_array = PSI.get_parameter_array(container, key)
     attributes = PSI.get_parameter_attributes(container, key)
     components = PSI.get_available_components(PSY.HybridSystem, PSI.get_system(model))
-    variable =
-        PSI.get_variable(container, PSI.get_variable_type(attributes)(), PSY.HybridSystem)
+    Vtype = _merchant_real_time_price_variable_type(key.meta)
+    variable = PSI.get_variable(container, Vtype(), PSY.HybridSystem)
     parameter_multiplier = PSI.get_parameter_multiplier_array(container, key)
     for component in components
         ext = PSY.get_ext(component)
@@ -318,7 +397,7 @@ function _update_parameter_values!(
             mul_ = parameter_multiplier[name, t] * 100.0
             _val = value * dt * mul_
             PSI._set_param_value!(parameter_array, _val, name, t)
-            if PSI.get_variable_type(attributes) ∈ (EnergyDABidOut, EnergyDABidIn)
+            if Vtype ∈ (EnergyDABidOut, EnergyDABidIn)
                 hy_cost = -variable[name, tmap[t]] * _val
             else
                 hy_cost = variable[name, t] * _val
@@ -359,7 +438,7 @@ function PSI._update_parameter_values!(
         t_step = model_resolution ÷ state_data.resolution
     end
     state_data_index = find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1
@@ -376,7 +455,7 @@ function PSI._update_parameter_values!(
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            _set_param_value!(parameter_array, state_value, name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, t)
         end
     end
     return
@@ -430,14 +509,14 @@ function PSI._update_parameter_values!(
             end
             state_value += state_value_
         end
-        PSI._set_param_value!(parameter_array, state_value, name, final_time)
+        _set_param_value_hss!(parameter_array, state_value, name, final_time)
     end
     return
 end
 
 # Container for Total Reserve #
 
-function PSI._set_param_value!(
+function _set_param_value_hss!(
     param::AbstractArray,
     value::Float64,
     name::String,
@@ -445,11 +524,10 @@ function PSI._set_param_value!(
     t::Int,
 )
     param[name, service_name, t] = value
-    #PSI.fix_parameter_value(param[name, service_name, t], value)
     return
 end
 
-function PSI._set_param_value!(param::AbstractArray, value::Float64, name::String, t::Int)
+function _set_param_value_hss!(param::AbstractArray, value::Float64, name::String, t::Int)
     PSI.fix_parameter_value(param[name, t], value)
     return
 end
@@ -475,7 +553,7 @@ function PSI._add_parameters!(
         device_names,
         service_names,
         time_steps;
-        meta="$TotalReserve",
+        meta = "$TotalReserve",
     )
     jump_model = PSI.get_jump_model(container)
     for d in devices
@@ -512,7 +590,7 @@ function PSI._fix_parameter_value!(
             JuMP.fix(
                 variable[name, s_name, t],
                 parameter_array[name, s_name, t];
-                force=true,
+                force = true,
             )
         end
     end

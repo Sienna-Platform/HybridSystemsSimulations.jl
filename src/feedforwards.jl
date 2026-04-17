@@ -1,3 +1,21 @@
+"""
+    CyclingChargeLimitFeedforward
+
+Feedforward that enforces a cumulative charging cycle limit on the hybrid's storage
+over the simulation. The constraint is ``\\eta_{\\text{ch}} \\Delta t \\sum_t (p_{\\text{ch},t} + s^{\\text{down}}_{\\text{reg},t} - s^{\\text{up}}_{\\text{reg},t}) \\leq \\text{limit}``,
+where ``s^{\\text{up}}_{\\text{reg},t}`` and ``s^{\\text{down}}_{\\text{reg},t}`` denote served reserve (up/down). The limit is from [`CyclingChargeLimitParameter`](@ref) in recurrent solves or
+``C_{\\text{horizon}} \\times E_{\\max,\\text{st}}`` otherwise. Use with PowerSimulations' `add_feedforward!` in a
+[`PowerSimulations.DeviceModel`](@extref PowerSimulations.DeviceModel) for
+[`HybridDispatchWithReserves`](@ref) or [`HybridEnergyOnlyDispatch`](@ref).
+
+**Input data:**
+
+  - **Storage limits:** Limit supplied by [`CyclingChargeLimitParameter`](@ref), which is derived
+    from the hybrid's storage using `PowerSystems.get_cycle_limits` and
+    `PowerSystems.get_storage_level_limits`.
+  - Not compatible with the device attribute `"cycling" => true` (cycling limits are then
+    enforced in the formulation).
+"""
 struct CyclingChargeLimitFeedforward <: PSI.AbstractAffectFeedforward
     optimization_container_key::PSI.OptimizationContainerKey
     affected_values::Vector{<:PSI.OptimizationContainerKey}
@@ -7,7 +25,7 @@ struct CyclingChargeLimitFeedforward <: PSI.AbstractAffectFeedforward
         source::Type{T},
         affected_values::Vector{DataType},
         penalty_cost::Float64,
-        meta=ISOPT.CONTAINER_KEY_EMPTY_META,
+        meta = ISOPT.CONTAINER_KEY_EMPTY_META,
     ) where {T}
         values_vector = Vector{PSI.ParameterKey}(undef, length(affected_values))
         for (ix, v) in enumerate(affected_values)
@@ -33,6 +51,22 @@ PSI.get_default_parameter_type(::CyclingChargeLimitFeedforward, _) =
 PSI.get_optimization_container_key(ff::CyclingChargeLimitFeedforward) =
     ff.optimization_container_key
 
+"""
+    CyclingDischargeLimitFeedforward
+
+Feedforward that enforces a cumulative discharging cycle limit on the hybrid's storage:
+``(1/\\eta_{\\text{ds}}) \\Delta t \\sum_t (p_{\\text{ds},t} + s^{\\text{up}}_{\\text{reg},t} - s^{\\text{down}}_{\\text{reg},t}) \\leq \\text{limit}``,
+where ``s^{\\text{up}}_{\\text{reg},t}`` and ``s^{\\text{down}}_{\\text{reg},t}`` denote served reserve (up/down). The limit comes from
+[`CyclingDischargeLimitParameter`](@ref) in recurrent runs. See
+[`CyclingChargeLimitFeedforward`](@ref) for usage pattern.
+
+**Input data:**
+
+  - Same as [`CyclingChargeLimitFeedforward`](@ref): limit from
+    [`CyclingDischargeLimitParameter`](@ref), derived from the hybrid's storage using
+    `PowerSystems.get_cycle_limits` and `PowerSystems.get_storage_level_limits`.
+  - Not compatible with device attribute `"cycling" => true`.
+"""
 struct CyclingDischargeLimitFeedforward <: PSI.AbstractAffectFeedforward
     optimization_container_key::PSI.OptimizationContainerKey
     affected_values::Vector{<:PSI.OptimizationContainerKey}
@@ -42,7 +76,7 @@ struct CyclingDischargeLimitFeedforward <: PSI.AbstractAffectFeedforward
         source::Type{T},
         affected_values::Vector{DataType},
         penalty_cost::Float64,
-        meta=ISOPT.CONTAINER_KEY_EMPTY_META,
+        meta = ISOPT.CONTAINER_KEY_EMPTY_META,
     ) where {T}
         values_vector = Vector{PSI.ParameterKey}(undef, length(affected_values))
         for (ix, v) in enumerate(affected_values)
@@ -108,6 +142,71 @@ function PSI._add_feedforward_arguments!(
 ) where {D <: PSY.HybridSystem}
     parameter_type = PSI.get_default_parameter_type(ff, D)
     PSI.add_parameters!(container, parameter_type, ff, model, devices)
+    return
+end
+
+function PSI._add_feedforward_arguments!(
+    container::PSI.OptimizationContainer,
+    model::PSI.DeviceModel{D, U},
+    devices::IS.FlattenIteratorWrapper{D},
+    ff::PSI.SemiContinuousFeedforward,
+) where {D <: PSY.HybridSystem, U <: PSI.AbstractDeviceFormulation}
+    parameter_type = PSI.get_default_parameter_type(ff, D)
+    PSI.add_parameters!(container, parameter_type, ff, model, devices)
+    PSI.add_to_expression!(
+        container,
+        PSI.ActivePowerRangeExpressionUB,
+        parameter_type(),
+        devices,
+        model,
+    )
+    PSI.add_to_expression!(
+        container,
+        PSI.ActivePowerRangeExpressionLB,
+        parameter_type(),
+        devices,
+        model,
+    )
+    return
+end
+
+function PSI._add_feedforward_arguments!(
+    container::PSI.OptimizationContainer,
+    model::PSI.DeviceModel{D, U},
+    devices::IS.FlattenIteratorWrapper{D},
+    ff::PSI.UpperBoundFeedforward,
+) where {D <: PSY.HybridSystem, U <: PSI.AbstractDeviceFormulation}
+    parameter_type = PSI.get_default_parameter_type(ff, D)
+    PSI.add_parameters!(container, parameter_type, ff, model, devices)
+    if PSI.get_slacks(ff)
+        PSI._add_feedforward_slack_variables!(
+            container,
+            PSI.UpperBoundFeedForwardSlack(),
+            ff,
+            model,
+            devices,
+        )
+    end
+    return
+end
+
+function PSI._add_feedforward_arguments!(
+    container::PSI.OptimizationContainer,
+    model::PSI.DeviceModel{D, U},
+    devices::IS.FlattenIteratorWrapper{D},
+    ff::PSI.LowerBoundFeedforward,
+) where {D <: PSY.HybridSystem, U <: PSI.AbstractDeviceFormulation}
+    parameter_type = PSI.get_default_parameter_type(ff, D)
+    PSI.add_parameters!(container, parameter_type, ff, model, devices)
+    if PSI.get_slacks(ff)
+        PSI._add_feedforward_slack_variables!(
+            container,
+            PSI.LowerBoundFeedForwardSlack(),
+            ff,
+            model,
+            devices,
+        )
+    end
     return
 end
 
@@ -203,7 +302,10 @@ function PSI.add_feedforward_constraints!(
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
         if PSI.built_for_recurrent_solves(container)
             param_value =
-                PSI.get_parameter_array(container, CyclingChargeLimitParameter(), D)[ci_name, time_steps[end]]
+                PSI.get_parameter_array(container, CyclingChargeLimitParameter(), D)[
+                    ci_name,
+                    time_steps[end],
+                ]
             con_cycling_ch[ci_name] = JuMP.@constraint(
                 PSI.get_jump_model(container),
                 efficiency.in * fraction_of_hour * sum(charge_var[ci_name, :]) <=
@@ -307,7 +409,10 @@ function PSI.add_feedforward_constraints!(
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
         if PSI.built_for_recurrent_solves(container)
             param_value =
-                PSI.get_parameter_array(container, CyclingDischargeLimitParameter(), D)[ci_name, time_steps[end]]
+                PSI.get_parameter_array(container, CyclingDischargeLimitParameter(), D)[
+                    ci_name,
+                    time_steps[end],
+                ]
             con_cycling_ds[ci_name] = JuMP.@constraint(
                 PSI.get_jump_model(container),
                 (1.0 / efficiency.out) *
