@@ -12,8 +12,10 @@
     bus_name = "chuhsi"
     sys_rts_rt.internal.ext = Dict{String, DataFrame}()
     dic = get_ext(sys_rts_rt)
-    dic["λ_da_df"] = CSV.read(joinpath(TEST_DIR, "inputs/$(bus_name)_DA_prices.csv"), DataFrame)
-    dic["λ_rt_df"] = CSV.read(joinpath(TEST_DIR, "inputs/$(bus_name)_RT_prices.csv"), DataFrame)
+    dic["λ_da_df"] =
+        CSV.read(joinpath(TEST_DIR, "inputs/$(bus_name)_DA_prices.csv"), DataFrame)
+    dic["λ_rt_df"] =
+        CSV.read(joinpath(TEST_DIR, "inputs/$(bus_name)_RT_prices.csv"), DataFrame)
     dic["horizon_RT"] = 288
     dic["horizon_DA"] = 24
 
@@ -47,5 +49,5 @@
 
     @test build!(sim_optimizer) == PSI.SimulationBuildStatus.BUILT
     @test execute!(sim_optimizer; enable_progress_bar = false) ==
-                 PSI.RunStatus.SUCCESSFULLY_FINALIZED
+          PSI.RunStatus.SUCCESSFULLY_FINALIZED
 end

@@ -19,9 +19,17 @@ function _run_only_energy_case(horizon_merchant_rt::Int, horizon_merchant_da::In
 
     hy_sys = first(get_components(HybridSystem, sys))
     PSY.set_ext!(hy_sys, deepcopy(dic))
-    ts_da = PSY.get_time_series(IS.SingleTimeSeries, hy_sys, "RenewableDispatch__max_active_power_da")
+    ts_da = PSY.get_time_series(
+        IS.SingleTimeSeries,
+        hy_sys,
+        "RenewableDispatch__max_active_power_da",
+    )
     ts_rt =
-        PSY.get_time_series(IS.DeterministicSingleTimeSeries, hy_sys, "RenewableDispatch__max_active_power")
+        PSY.get_time_series(
+            IS.DeterministicSingleTimeSeries,
+            hy_sys,
+            "RenewableDispatch__max_active_power",
+        )
     @test !isnothing(ts_da)
     @test IS.get_horizon(ts_rt) >= horizon_merchant_rt * IS.get_resolution(ts_rt)
 

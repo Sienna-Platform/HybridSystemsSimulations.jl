@@ -122,7 +122,9 @@ end
     )
     set_network_model!(template, NetworkModel(CopperPlatePowerModel; use_slacks = true))
     sys = PSB.build_system(PSITestSystems, "c_sys5_hybrid_uc")
-    model = DecisionModel(template, sys; optimizer = HiGHS_optimizer, initialize_model = false)
-    @test build!(model; output_dir = mktempdir(; cleanup = true)) == PSI.ModelBuildStatus.BUILT
+    model =
+        DecisionModel(template, sys; optimizer = HiGHS_optimizer, initialize_model = false)
+    @test build!(model; output_dir = mktempdir(; cleanup = true)) ==
+          PSI.ModelBuildStatus.BUILT
     @test solve!(model) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 end

@@ -251,12 +251,15 @@ end
 _extract_first_numeric_value(value::Number) = Float64(value)
 _extract_first_numeric_value(value::AbstractArray) = Float64(first(value))
 _extract_first_numeric_value(value) =
-    hasproperty(value, :values) ? Float64(first(getproperty(value, :values))) :
-    throw(
+    if hasproperty(value, :values)
+        Float64(first(getproperty(value, :values)))
+    else
+        throw(
         ArgumentError(
             "Unable to extract scalar fuel cost from $(typeof(value)); expected Number or array-like values.",
         ),
     )
+    end
 
 _time_step_datetime(container::PSI.OptimizationContainer, t::Int) =
     PSI.get_initial_time(container) + (t - 1) * PSI.get_resolution(container)

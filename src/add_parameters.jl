@@ -286,7 +286,11 @@ function PSI._update_parameter_values!(
     input::PSI.DatasetContainer{PSI.InMemoryDataset},
 ) where {T <: HybridDecisionProblem}
     container = PSI.get_optimization_container(model)
-    key = _merchant_hybrid_price_parameter_key(container, parameter_array, DayAheadEnergyPrice)
+    key = _merchant_hybrid_price_parameter_key(
+        container,
+        parameter_array,
+        DayAheadEnergyPrice,
+    )
     if key === nothing
         error(
             "Could not match DayAheadEnergyPrice parameter array to a registered HybridSystem parameter key",
@@ -306,7 +310,11 @@ function PSI._update_parameter_values!(
     input::PSI.DatasetContainer{PSI.InMemoryDataset},
 ) where {T <: HybridDecisionProblem}
     container = PSI.get_optimization_container(model)
-    key = _merchant_hybrid_price_parameter_key(container, parameter_array, RealTimeEnergyPrice)
+    key = _merchant_hybrid_price_parameter_key(
+        container,
+        parameter_array,
+        RealTimeEnergyPrice,
+    )
     if key === nothing
         error(
             "Could not match RealTimeEnergyPrice parameter array to a registered HybridSystem parameter key",

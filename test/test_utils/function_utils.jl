@@ -40,7 +40,10 @@ function _build_battery(
     return device
 end
 
-function add_hybrid_to_chuhsi_bus!(sys::System; horizon_rt_steps::Union{Nothing, Int} = nothing)
+function add_hybrid_to_chuhsi_bus!(
+    sys::System;
+    horizon_rt_steps::Union{Nothing, Int} = nothing,
+)
     bus = get_component(Bus, sys, "Chuhsi")
     bat = _build_battery(bus, 4.0, 2.0, 0.93, 0.93)
     # Wind is taken from Bus 317: Chuhsi

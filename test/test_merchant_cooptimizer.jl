@@ -28,7 +28,11 @@ function _run_cooptimizer_case(with_services::Bool)
 
     hy_sys = first(get_components(HybridSystem, sys))
     ts_rt =
-        PSY.get_time_series(IS.DeterministicSingleTimeSeries, hy_sys, "RenewableDispatch__max_active_power")
+        PSY.get_time_series(
+            IS.DeterministicSingleTimeSeries,
+            hy_sys,
+            "RenewableDispatch__max_active_power",
+        )
     @test IS.get_horizon(ts_rt) >= horizon_merchant_rt * IS.get_resolution(ts_rt)
 
     if with_services
@@ -71,7 +75,10 @@ function _run_cooptimizer_case(with_services::Bool)
     @test length(rt_bid_out[!, 1]) == 288
     if with_services
         regup_bid_out =
-            var_results[PSI.VariableKey{HSS.BidReserveVariableOut, VariableReserve{ReserveUp}}(
+            var_results[PSI.VariableKey{
+                HSS.BidReserveVariableOut,
+                VariableReserve{ReserveUp},
+            }(
                 "Reg_Up",
             )]
         @test length(regup_bid_out[!, 1]) == 24
