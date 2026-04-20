@@ -7,7 +7,7 @@
 
 ## Development
 
-Contributions to the development and enahancement of HybridSystemsSimulations is welcome. Please see [CONTRIBUTING.md](https://github.com/Sienna-Platform/HybridSystemsSimulations.jl/blob/master/CONTRIBUTING.md) for code contribution guidelines.
+Contributions to the development and enhancement of HybridSystemsSimulations is welcome. Please see [CONTRIBUTING.md](https://github.com/Sienna-Platform/HybridSystemsSimulations.jl/blob/master/CONTRIBUTING.md) for code contribution guidelines.
 
 ## License
 
