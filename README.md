@@ -11,4 +11,4 @@ Contributions to the development and enhancement of HybridSystemsSimulations is 
 
 ## License
 
-HybridSystemsSimulations is released under a BSD [license](https://github.com/Sienna-Platform/HybridSystemsSimulations/blob/master/LICENSE). HybridSystemsSimulations has been developed as part of the FlexPower Project at the U.S. Department of Energy's National Renewable Energy Laboratory ([NREL](https://www.nrel.gov/))
+HybridSystemsSimulations is released under a BSD [license](https://github.com/Sienna-Platform/HybridSystemsSimulations/blob/master/LICENSE). HybridSystemsSimulations has been developed as part of the FlexPower Project at the U.S. Department of Energy's National Laboratory of the Rockies ([NLR](https://www.nlr.gov/)) (formerly known as NREL)
