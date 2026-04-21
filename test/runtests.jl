@@ -25,14 +25,13 @@ LOG_LEVELS = Dict(
 )
 
 # Constants
-# Constants
-const PSY = PowerSystems
-const PSI = PowerSimulations
-const PSB = PowerSystemCaseBuilder
-const IS = InfrastructureSystems
-const PM = PSI.PM
-const PNM = PowerNetworkMatrices
-const HSS = HybridSystemsSimulations
+import PowerSystems as PSY
+import PowerSimulations as PSI
+import PowerSystemCaseBuilder as PSB
+import InfrastructureSystems as IS
+import PowerSimulations.PM as PM
+import PowerNetworkMatrices as PNM
+import HybridSystemsSimulations as HSS
 
 # Test Utils
 using JuMP

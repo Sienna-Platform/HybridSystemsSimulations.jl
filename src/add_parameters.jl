@@ -500,7 +500,7 @@ function PSI._fix_parameter_value!(
     container::PSI.OptimizationContainer,
     parameter_array::JuMP.Containers.DenseAxisArray{Float64, 3},
     parameter_attributes::PSI.VariableValueAttributes{
-        PowerSimulations.VariableKey{TotalReserve, PSY.HybridSystem},
+        PSI.VariableKey{TotalReserve, PSY.HybridSystem},
     },
 )
     affected_variable_keys = parameter_attributes.affected_keys

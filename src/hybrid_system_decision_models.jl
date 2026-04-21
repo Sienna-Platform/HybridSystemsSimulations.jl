@@ -229,7 +229,7 @@ end
 function PSI._update_parameter_values!(
     parameter_array::AbstractArray{T},
     attributes::PSI.VariableValueAttributes{
-        PowerSimulations.VariableKey{U, PSY.HybridSystem},
+        PSI.VariableKey{U, PSY.HybridSystem},
     },
     ::Type{<:PSY.HybridSystem},
     model::PSI.DecisionModel,
@@ -272,7 +272,7 @@ function PSI._fix_parameter_value!(
     container::PSI.OptimizationContainer,
     parameter_array::PSI.JuMPFloatMatrix,
     parameter_attributes::PSI.VariableValueAttributes{
-        PowerSimulations.VariableKey{U, PSY.HybridSystem},
+        PSI.VariableKey{U, PSY.HybridSystem},
     },
 ) where {U <: Union{EnergyDABidIn, EnergyDABidOut}}
     affected_variable_keys = parameter_attributes.affected_keys
@@ -355,7 +355,7 @@ end
 function PSI._update_parameter_values!(
     parameter_array::AbstractArray{T},
     attributes::PSI.VariableValueAttributes{
-        PowerSimulations.VariableKey{TotalReserve, PSY.HybridSystem},
+        PSI.VariableKey{TotalReserve, PSY.HybridSystem},
     },
     ::Type{<:PSY.HybridSystem},
     model::PSI.DecisionModel,
