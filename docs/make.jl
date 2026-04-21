@@ -21,7 +21,7 @@ makedocs(
 )
 
 deploydocs(
-    repo="github.com/NREL-Sienna/HybridSystemsSimulations.jl.git",
+    repo="github.com/Sienna-Platform/HybridSystemsSimulations.jl.git",
     target="build",
     branch="gh-pages",
     devbranch="main",
