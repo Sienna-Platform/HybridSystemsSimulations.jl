@@ -95,8 +95,8 @@ function _add_hybrid_renewable_da_time_series!(
         )
         single_da = IS.SingleTimeSeries(ts, "RenewableDispatch__max_active_power_da")
         PSY.add_time_series!(sys, hybrid, single_da)
-    catch
-        nothing
+    catch e
+        e isa ArgumentError || rethrow()
     end
 
     # Force deterministic windows to exactly match the merchant RT horizon request
@@ -121,8 +121,8 @@ function _add_hybrid_renewable_da_time_series!(
             interval;
             resolution = resolution,
         )
-    catch
-        nothing
+    catch e
+        e isa ArgumentError || rethrow()
     end
     return
 end
