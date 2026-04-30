@@ -7,7 +7,7 @@ CurrentModule = HybridSystemsSimulations
 ## Overview
 
 `HybridSystemsSimulations.jl` is a power system operations simulation package that extends
-[`PowerSimulations.jl`](https://nrel-sienna.github.io/PowerSimulations.jl/stable/) to model
+[`PowerSimulations.jl`](https://sienna-platform.github.io/PowerSimulations.jl/stable/) to model
 hybrid systems (co-located renewable, thermal, and storage behind a single point of common
 coupling). It provides device formulations, decision models, and constraints for
 production-cost and merchant-style studies, including ancillary services and bilevel
@@ -19,15 +19,15 @@ feedback, suggestions, and bug reports.
 ## About Sienna
 
 `HybridSystemsSimulations.jl` is part of the National Laboratory of the Rockies's (NLR, formerly NREL)
-[Sienna ecosystem](https://nrel-sienna.github.io/Sienna/), an open source framework for
+[Sienna ecosystem](https://sienna-platform.github.io/Sienna/), an open source framework for
 power system modeling, simulation, and optimization. The Sienna ecosystem can be
-[found on GitHub](https://github.com/NREL-Sienna/Sienna). It contains three applications:
+[found on GitHub](https://github.com/sienna-platform/Sienna). It contains three applications:
 
-  - [Sienna\Data](https://nrel-sienna.github.io/Sienna/pages/applications/sienna_data.html) enables
+  - [Sienna\Data](https://sienna-platform.github.io/Sienna/pages/applications/sienna_data.html) enables
     efficient data input, analysis, and transformation
-  - [Sienna\Ops](https://nrel-sienna.github.io/Sienna/pages/applications/sienna_ops.html)
+  - [Sienna\Ops](https://sienna-platform.github.io/Sienna/pages/applications/sienna_ops.html)
     enables system scheduling simulations by formulating and solving optimization problems
-  - [Sienna\Dyn](https://nrel-sienna.github.io/Sienna/pages/applications/sienna_dyn.html) enables
+  - [Sienna\Dyn](https://sienna-platform.github.io/Sienna/pages/applications/sienna_dyn.html) enables
     system transient analysis including small signal stability and full system dynamic
     simulations
 
@@ -42,10 +42,10 @@ U.S. Department of Energy's National Laboratory of the Rockies
 
 ## Installation and Quick Links
 
-  - [Sienna installation page](https://nrel-sienna.github.io/Sienna/SiennaDocs/docs/build/how-to/install/):
+  - [Sienna installation page](https://sienna-platform.github.io/Sienna/SiennaDocs/docs/build/how-to/install/):
     Instructions to install `HybridSystemsSimulations.jl` and other Sienna\Ops packages
   - [`JuMP.jl` solver's page](https://jump.dev/JuMP.jl/stable/installation/#Install-a-solver): An appropriate optimization solver is required for running models. Refer to this page to select and install a solver for your application.
-  - [Sienna Documentation Hub](https://nrel-sienna.github.io/Sienna/SiennaDocs/docs/build/index.html):
+  - [Sienna Documentation Hub](https://sienna-platform.github.io/Sienna/SiennaDocs/docs/build/index.html):
     Links to other Sienna packages' documentation
 
 ## How To Use This Documentation

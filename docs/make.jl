@@ -6,9 +6,9 @@ using Literate
 
 links = InterLinks(
     "Julia" => "https://docs.julialang.org/en/v1/",
-    "InfrastructureSystems" => "https://nrel-sienna.github.io/InfrastructureSystems.jl/stable/",
-    "PowerSystems" => "https://nrel-sienna.github.io/PowerSystems.jl/stable/",
-    "PowerSimulations" => "https://nrel-sienna.github.io/PowerSimulations.jl/stable/",
+    "InfrastructureSystems" => "https://sienna-platform.github.io/InfrastructureSystems.jl/stable/",
+    "PowerSystems" => "https://sienna-platform.github.io/PowerSystems.jl/stable/",
+    "PowerSimulations" => "https://sienna-platform.github.io/PowerSimulations.jl/stable/",
 )
 
 include(joinpath(@__DIR__, "make_tutorials.jl"))
