@@ -1,6 +1,6 @@
 # Contributing
 
-Community driven development of this package is encouraged. To maintain code quality standards, please adhere to the following guidlines when contributing:
+Community driven development of this package is encouraged. To maintain code quality standards, please adhere to the following guidelines when contributing:
 
   - To get started, <a href="https://www.clahub.com/agreements/NREL/SIIP-PACKAGE.jl">sign the Contributor License Agreement</a>.
   - Please do your best to adhere to our [coding style guide](docs/src/developer/style.md).
