@@ -4,8 +4,6 @@ using DataStructures
 using DocumenterInterLinks
 using Literate
 
-const _DOCS_BASE_URL = "https://nrel-sienna.github.io/HybridSystemsSimulations.jl/stable"
-
 links = InterLinks(
     "Julia" => "https://docs.julialang.org/en/v1/",
     "InfrastructureSystems" => "https://nrel-sienna.github.io/InfrastructureSystems.jl/stable/",
