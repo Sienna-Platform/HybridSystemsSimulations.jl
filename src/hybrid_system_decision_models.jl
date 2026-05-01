@@ -193,9 +193,8 @@ function PSI.update_decision_state!(
 ) where {T <: Union{EnergyDABidOut, EnergyDABidIn}}
     @debug "updating decision state $simulation_time"
     state_data = PSI.get_decision_state_data(state, key)
-    model_resolution = PSI.get_resolution(model_params) # var res: 1 hour
-    model_resolution = Dates.Hour(1) #TODO: Find a ext hack
-    state_resolution = PSI.get_data_resolution(state_data) # 5 min
+    model_resolution = PSI.get_resolution(model_params)
+    state_resolution = PSI.get_data_resolution(state_data)
     resolution_ratio = model_resolution ÷ state_resolution
     state_timestamps = state_data.timestamps
     PSI.IS.@assert_op resolution_ratio >= 1
@@ -240,7 +239,11 @@ function PSI._update_parameter_values!(
     component_names, time = axes(parameter_array)
     model_resolution = PSI.get_resolution(model)
     state_data = PSI.get_dataset(state, PSI.get_attribute_key(attributes))
-    t_step = model_resolution ÷ state_data.resolution
+    if model_resolution < state_data.resolution
+        t_step = 1
+    else
+        t_step = model_resolution ÷ state_data.resolution
+    end
     @assert t_step > 0
     state_timestamps = state_data.timestamps
     max_state_index = PSI.get_num_rows(state_data)

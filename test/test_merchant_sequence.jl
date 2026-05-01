@@ -3,7 +3,7 @@
     sys_rts_rt = PSB.build_RTS_GMLC_RT_sys(;
         raw_data = PSB.RTS_DIR,
         horizon = 288,
-        interval = Hour(24),
+        interval = Hour(1),
     )
 
     modify_ren_curtailment_cost!(sys_rts_rt)
@@ -34,6 +34,7 @@
         initial_time = DateTime("2020-10-03T00:00:00"),
         horizon = Hour(24),
         resolution = Minute(5),
+        interval = Hour(1),
         name = "MerchantHybridEnergyCase_Sequence",
     )
 

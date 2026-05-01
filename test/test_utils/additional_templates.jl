@@ -24,7 +24,7 @@ function set_uc_models!(template_uc)
     return
 end
 
-function get_template_basic_uc_simulation()
+function get_hss_template_basic_uc_simulation()
     template = ProblemTemplate(CopperPlatePowerModel)
     set_device_model!(template, ThermalStandard, ThermalBasicDispatch)
     set_device_model!(template, RenewableDispatch, RenewableFullDispatch)
@@ -33,13 +33,13 @@ function get_template_basic_uc_simulation()
     return template
 end
 
-function get_template_standard_uc_simulation()
-    template = get_template_basic_uc_simulation()
+function get_hss_template_standard_uc_simulation()
+    template = get_hss_template_basic_uc_simulation()
     set_device_model!(template, ThermalStandard, ThermalStandardUnitCommitment)
     return template
 end
 
-function get_thermal_dispatch_template_network(network = CopperPlatePowerModel)
+function get_hss_thermal_dispatch_template_network(network = CopperPlatePowerModel)
     template = ProblemTemplate(network)
     set_device_model!(template, ThermalStandard, ThermalBasicDispatch)
     set_device_model!(template, PowerLoad, StaticPowerLoad)
@@ -92,6 +92,9 @@ function build_simulation_case_optimizer(
                 sys_da;
                 name = "UC",
                 optimizer = HiGHS_optimizer,
+                # PSI 0.34: later stage horizon must not exceed prior.
+                horizon = Hour(24),
+                interval = Hour(1),
                 initialize_model = true,
                 optimizer_solve_log_print = false,
                 direct_mode_optimizer = true,

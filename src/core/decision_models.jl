@@ -189,8 +189,36 @@ function PSI.validate_time_series!(model::PSI.DecisionModel{<:HybridDecisionProb
         PSI.set_resolution!(settings, first(available_resolutions))
     end
 
+    model_interval = PSI.get_interval(settings)
+    available_intervals = Set(
+        row.interval for
+        row in eachrow(PSY.get_forecast_summary_table(sys)) if row.interval !== nothing
+    )
+    if model_interval == PSI.UNSET_INTERVAL && length(available_intervals) > 1
+        throw(
+            IS.ConflictingInputsError(
+                "The system contains multiple forecast intervals $(available_intervals). " *
+                "The `interval` keyword argument must be provided to the DecisionModel constructor " *
+                "to select which interval to use.",
+            ),
+        )
+    elseif model_interval != PSI.UNSET_INTERVAL && !isempty(available_intervals)
+        if model_interval ∉ available_intervals
+            throw(
+                IS.ConflictingInputsError(
+                    "Interval $(Dates.canonicalize(model_interval)) is not available in the system data. " *
+                    "Available forecast intervals: $(available_intervals)",
+                ),
+            )
+        end
+    end
+    interval_kwarg =
+        model_interval == PSI.UNSET_INTERVAL ? (;) : (; interval = model_interval)
     if PSI.get_horizon(settings) == PSI.UNSET_HORIZON
-        PSI.set_horizon!(settings, PSY.get_forecast_horizon(sys))
+        PSI.set_horizon!(
+            settings,
+            PSY.get_forecast_horizon(sys; interval_kwarg...),
+        )
     end
 
     counts = PSY.get_time_series_counts(sys)

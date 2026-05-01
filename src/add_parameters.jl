@@ -11,15 +11,32 @@ function _add_time_series_parameters(
     ts_name
     ts_type = PSI.get_default_time_series_type(container)
     time_steps = PSI.get_time_steps(container)
+    settings = PSI.get_settings(container)
+    model_resolution = PSI.get_resolution(settings)
+    model_interval = PSI.get_interval(settings)
 
     device_names = String[]
     initial_values = Dict{String, AbstractArray}()
     for device in devices
         push!(device_names, PSY.get_name(device))
-        ts_uuid = string(IS.get_time_series_uuid(ts_type, device, ts_name))
+        ts_uuid = string(
+            IS.get_time_series_uuid(
+                ts_type,
+                device,
+                ts_name;
+                resolution = PSI._to_is_resolution(model_resolution),
+                interval = PSI._to_is_interval(model_interval),
+            ),
+        )
         if !(ts_uuid in keys(initial_values))
-            initial_values[ts_uuid] =
-                PSI.get_time_series_initial_values!(container, ts_type, device, ts_name)
+            initial_values[ts_uuid] = PSI.get_time_series_initial_values!(
+                container,
+                ts_type,
+                device,
+                ts_name;
+                resolution = model_resolution,
+                interval = model_interval,
+            )
         end
     end
 
@@ -51,7 +68,15 @@ function _add_time_series_parameters(
         PSI.add_component_name!(
             PSI.get_attributes(param_container),
             name,
-            string(IS.get_time_series_uuid(ts_type, device, ts_name)),
+            string(
+                IS.get_time_series_uuid(
+                    ts_type,
+                    device,
+                    ts_name;
+                    resolution = PSI._to_is_resolution(model_resolution),
+                    interval = PSI._to_is_interval(model_interval),
+                ),
+            ),
         )
     end
     return

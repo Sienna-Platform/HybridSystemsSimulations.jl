@@ -1,7 +1,7 @@
 @testset "Test HybridSystem Simulation Only UC" begin
     sys_uc = PSB.build_system(PSITestSystems, "c_sys5_hybrid_uc")
 
-    template_uc = get_template_standard_uc_simulation()
+    template_uc = get_hss_template_standard_uc_simulation()
     set_device_model!(
         template_uc,
         DeviceModel(
@@ -45,7 +45,7 @@ end
     sys_uc = PSB.build_system(PSITestSystems, "c_sys5_hybrid_uc")
     sys_ed = PSB.build_system(PSITestSystems, "c_sys5_hybrid_ed")
 
-    template_uc = get_template_standard_uc_simulation()
+    template_uc = get_hss_template_standard_uc_simulation()
     set_device_model!(
         template_uc,
         DeviceModel(
@@ -55,7 +55,7 @@ end
         ),
     )
     set_network_model!(template_uc, NetworkModel(CopperPlatePowerModel; use_slacks = true))
-    template_ed = get_thermal_dispatch_template_network(
+    template_ed = get_hss_thermal_dispatch_template_network(
         NetworkModel(CopperPlatePowerModel; use_slacks = true),
     )
     set_device_model!(
@@ -106,7 +106,7 @@ end
 end
 
 @testset "Test HybridSystem embedded storage (energy_target)" begin
-    template = get_template_standard_uc_simulation()
+    template = get_hss_template_standard_uc_simulation()
     set_device_model!(
         template,
         DeviceModel(
