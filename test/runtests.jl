@@ -4,12 +4,12 @@ using PowerSimulations
 using PowerSystemCaseBuilder
 using PowerNetworkMatrices
 using HybridSystemsSimulations
-using StorageSystemsSimulations
 using DataFrames
 using CSV
 using InfrastructureSystems
 using Test
 using Logging
+using Dates
 
 import Aqua
 Aqua.test_unbound_args(HybridSystemsSimulations)
@@ -46,6 +46,9 @@ HiGHS_optimizer = JuMP.optimizer_with_attributes(
     "mip_rel_gap" => 3e-1,
 )
 
+fast_ipopt_optimizer() = HiGHS_optimizer
+scs_solver() = HiGHS_optimizer
+
 # Load
 PSI_DIR = string(dirname(dirname(pathof(PowerSimulations))))
 include(joinpath(PSI_DIR, "test/test_utils/mock_operation_models.jl"))
@@ -55,7 +58,6 @@ include(joinpath(PSI_DIR, "test/test_utils/model_checks.jl"))
 TEST_DIR = isempty(dirname(@__FILE__)) ? "test" : dirname(@__FILE__)
 include(joinpath(TEST_DIR, "test_utils/function_utils.jl"))
 include(joinpath(TEST_DIR, "test_utils/additional_templates.jl"))
-include(joinpath(TEST_DIR, "test_utils/price_generation_utils.jl"))
 
 """
 Copied @includetests from https://github.com/ssfrr/TestSetExtensions.jl.
@@ -110,9 +112,9 @@ function run_tests()
         config = IS.LoggingConfiguration(logging_config_filename)
     else
         config = IS.LoggingConfiguration(;
-            filename=LOG_FILE,
-            file_level=Logging.Info,
-            console_level=Logging.Error,
+            filename = LOG_FILE,
+            file_level = Logging.Info,
+            console_level = Logging.Error,
         )
     end
     console_logger = ConsoleLogger(config.console_stream, config.console_level)

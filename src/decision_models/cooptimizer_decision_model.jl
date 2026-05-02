@@ -9,11 +9,15 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
     # Resolution
-    RT_resolution = PSY.get_time_series_resolution(sys)
+    RT_resolution = first(PSY.get_time_series_resolutions(sys))
     Δt_DA = 1.0
     Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
-    PSI.init_optimization_container!(container, PSI.CopperPlatePowerModel, sys)
+    PSI.init_optimization_container!(
+        container,
+        PSI.get_network_model(PSI.get_template(decision_model)),
+        sys,
+    )
     PSI.init_model_store_params!(decision_model)
 
     # Create Multiple Time Horizons based on ext horizons
@@ -65,6 +69,14 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     end
 
     device_model = PSI.get_model(PSI.get_template(decision_model), PSY.HybridSystem)
+    if device_model === nothing
+        error(
+            "MerchantHybridCooptimizerCase requires a DeviceModel for HybridSystem in the " *
+            "ProblemTemplate. Call set_device_model!(template, DeviceModel(PSY.HybridSystem, " *
+            "HybridDispatchWithReserves)) or another appropriate hybrid formulation before " *
+            "constructing the DecisionModel.",
+        )
+    end
     device_formulation = PSI.get_formulation(device_model)
     network_model = PSI.get_network_model(PSI.get_template(decision_model))
 
@@ -766,10 +778,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             PSI.add_to_objective_variant_expression!(container, service_in_cost)
         end
         if !isnothing(dev.thermal_unit)
-            # Workaround
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            C_th_fix = three_cost.fixed # $/h
+            C_th_fix = get_thermal_fixed_cost_per_hour(dev)
             lin_cost_on_th = Δt_DA * C_th_fix * on_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_on_th)
         end
@@ -819,7 +828,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
         end
     end
 
-    if len_DA == 24
+    if len_DA == 24 && !isempty(services)
         res_slack_up = PSI.get_variable(container, SlackReserveUp(), PSY.HybridSystem)
         res_slack_dn = PSI.get_variable(container, SlackReserveDown(), PSY.HybridSystem)
     end
@@ -836,25 +845,24 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
         PSI.add_to_objective_variant_expression!(container, lin_cost_dart_out)
         PSI.add_to_objective_variant_expression!(container, lin_cost_dart_in)
         if !isnothing(dev.thermal_unit)
-            # Workaround to add ThermalCost with a Linear Cost Since the model doesn't include PWL cost
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            first_part = three_cost.variable[1]
-            second_part = three_cost.variable[2]
-            slope = (second_part[1] - first_part[1]) / (second_part[2] - first_part[2]) # $/MWh
-            fix_cost = three_cost.fixed # $/h
-            C_th_var = slope * 100.0 # Multiply by 100 to transform to $/pu
+            C_th_var = get_thermal_marginal_cost_per_system_unit(container, dev, t)
             lin_cost_p_th = Δt_RT * C_th_var * p_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_th)
         end
         if !isnothing(dev.storage)
-            VOM = dev.storage.operation_cost.variable.cost
-            lin_cost_p_ch = 100.0 * Δt_RT * VOM * p_ch[name, t]
-            lin_cost_p_ds = 100.0 * Δt_RT * VOM * p_ds[name, t]
+            storage_cost = PSY.get_operation_cost(dev.storage)
+            charge_vom = PSY.get_proportional_term(
+                PSY.get_vom_cost(PSY.get_charge_variable_cost(storage_cost)),
+            )
+            discharge_vom = PSY.get_proportional_term(
+                PSY.get_vom_cost(PSY.get_discharge_variable_cost(storage_cost)),
+            )
+            lin_cost_p_ch = 100.0 * Δt_RT * charge_vom * p_ch[name, t]
+            lin_cost_p_ds = 100.0 * Δt_RT * discharge_vom * p_ds[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ch)
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ds)
         end
-        if len_DA == 24
+        if len_DA == 24 && !isempty(services)
             dev_services = PSY.get_services(dev)
             for service in dev_services
                 service_name = PSY.get_name(service)
@@ -993,7 +1001,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             MerchantModelWithReserves(),
         )
 
-        if PSI.get_attribute(device_model, "cycling")
+        if something(PSI.get_attribute(device_model, "cycling"), false)
             PSI.add_constraints!(
                 container,
                 CyclingCharge,

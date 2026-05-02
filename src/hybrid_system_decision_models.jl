@@ -193,9 +193,8 @@ function PSI.update_decision_state!(
 ) where {T <: Union{EnergyDABidOut, EnergyDABidIn}}
     @debug "updating decision state $simulation_time"
     state_data = PSI.get_decision_state_data(state, key)
-    model_resolution = PSI.get_resolution(model_params) # var res: 1 hour
-    model_resolution = Dates.Hour(1) #TODO: Find a ext hack
-    state_resolution = PSI.get_data_resolution(state_data) # 5 min
+    model_resolution = PSI.get_resolution(model_params)
+    state_resolution = PSI.get_data_resolution(state_data)
     resolution_ratio = model_resolution ÷ state_resolution
     state_timestamps = state_data.timestamps
     PSI.IS.@assert_op resolution_ratio >= 1
@@ -204,8 +203,8 @@ function PSI.update_decision_state!(
         state_data_index = 1
         state_data.timestamps[:] .= range(
             simulation_time;
-            step=state_resolution,
-            length=PSI.get_num_rows(state_data),
+            step = state_resolution,
+            length = PSI.get_num_rows(state_data),
         )
     else
         state_data_index = PSI.find_timestamp_index(state_timestamps, simulation_time)
@@ -240,12 +239,16 @@ function PSI._update_parameter_values!(
     component_names, time = axes(parameter_array)
     model_resolution = PSI.get_resolution(model)
     state_data = PSI.get_dataset(state, PSI.get_attribute_key(attributes))
-    t_step = model_resolution ÷ state_data.resolution
+    if model_resolution < state_data.resolution
+        t_step = 1
+    else
+        t_step = model_resolution ÷ state_data.resolution
+    end
     @assert t_step > 0
     state_timestamps = state_data.timestamps
     max_state_index = PSI.get_num_rows(state_data)
     state_data_index = PSI.find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1
@@ -262,7 +265,7 @@ function PSI._update_parameter_values!(
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            PSI._set_param_value!(parameter_array, state_value, name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, t)
         end
     end
     return
@@ -283,11 +286,11 @@ function PSI._fix_parameter_value!(
         if time_var[end] < time[end]
             for t in time_var, name in component_names
                 t_ = 1 + (t - 1) * time[end] ÷ time_var[end]
-                JuMP.fix(variable[name, t], parameter_array[name, t_]; force=true)
+                JuMP.fix(variable[name, t], parameter_array[name, t_]; force = true)
             end
         elseif time_var[end] == time[end]
             for t in time_var, name in component_names
-                JuMP.fix(variable[name, t], parameter_array[name, t]; force=true)
+                JuMP.fix(variable[name, t], parameter_array[name, t]; force = true)
             end
         else
             error("invalid condition")
@@ -319,8 +322,8 @@ function PSI.update_decision_state!(
         state_data_index = 1
         state_data.timestamps[:] .= range(
             simulation_time;
-            step=state_resolution,
-            length=PSI.get_num_rows(state_data),
+            step = state_resolution,
+            length = PSI.get_num_rows(state_data),
         )
     else
         state_data_index = PSI.find_timestamp_index(state_timestamps, simulation_time)
@@ -376,7 +379,7 @@ function PSI._update_parameter_values!(
         @assert false
     end
     state_data_index = PSI.find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1
@@ -393,7 +396,7 @@ function PSI._update_parameter_values!(
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            PSI._set_param_value!(parameter_array, state_value, name, service_name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, service_name, t)
         end
     end
     return

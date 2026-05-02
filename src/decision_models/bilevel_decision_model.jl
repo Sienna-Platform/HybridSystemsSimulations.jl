@@ -8,11 +8,15 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
     # Resolution
-    RT_resolution = PSY.get_time_series_resolution(sys)
+    RT_resolution = first(PSY.get_time_series_resolutions(sys))
     Δt_DA = 1.0
     Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
-    PSI.init_optimization_container!(container, PSI.CopperPlatePowerModel, sys)
+    PSI.init_optimization_container!(
+        container,
+        PSI.get_network_model(PSI.get_template(decision_model)),
+        sys,
+    )
     PSI.init_model_store_params!(decision_model)
 
     # Create Multiple Time Horizons based on ext horizons
@@ -567,10 +571,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
             PSI.add_to_objective_variant_expression!(container, service_in_cost)
         end
         if !isnothing(dev.thermal_unit)
-            # Workaround to add ThermalCost with a Linear Cost Since the model doesn't include PWL cost
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            C_th_fix = three_cost.fixed # $/h
+            C_th_fix = get_thermal_fixed_cost_per_hour(dev)
             lin_cost_on_th = Δt_DA * C_th_fix * on_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_on_th)
         end
@@ -949,8 +950,8 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
             ComplementarySlacknessBatteryBalanceLb,
             ComplementarySlacknessEnergyLimitUb,
             ComplementarySlacknessEnergyLimitLb,
-            ComplentarySlacknessCyclingCharge,
-            ComplentarySlacknessCyclingDischarge,
+            ComplementarySlacknessCyclingCharge,
+            ComplementarySlacknessCyclingDischarge,
         ]
             add_constraints!(container, c, hybrids, MerchantModelWithReserves())
         end
