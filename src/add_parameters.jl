@@ -6,7 +6,7 @@ function _add_time_series_parameters(
     container::PSI.OptimizationContainer,
     ts_name::String,
     param,
-    devices::Vector{PSY.HybridSystem},
+    devices::AbstractVector{<:PSY.HybridSystem},
 )
     ts_name
     ts_type = PSI.get_default_time_series_type(container)
@@ -61,7 +61,7 @@ function _add_time_series_parameters(
 
     for device in devices
         name = PSY.get_name(device)
-        multiplier = PSY.get_max_active_power(device.renewable_unit)
+        multiplier = _get_hybrid_ts_multiplier(param, device)
         for step in time_steps
             PSI.set_multiplier!(param_container, multiplier, name, step)
         end
@@ -80,6 +80,14 @@ function _add_time_series_parameters(
         )
     end
     return
+end
+
+function _get_hybrid_ts_multiplier(::RenewablePowerTimeSeries, device::PSY.HybridSystem)
+    return PSY.get_max_active_power(PSY.get_renewable_unit(device))
+end
+
+function _get_hybrid_ts_multiplier(::ElectricLoadTimeSeries, device::PSY.HybridSystem)
+    return PSY.get_max_active_power(PSY.get_electric_load(device))
 end
 
 # Multipliers consider that the objective function is a Maximization problem
@@ -208,7 +216,7 @@ end
 function add_time_series_parameters!(
     container::PSI.OptimizationContainer,
     param::RenewablePowerTimeSeries,
-    devices::Vector{PSY.HybridSystem},
+    devices::AbstractVector{<:PSY.HybridSystem},
     ts_name = "RenewableDispatch__max_active_power",
 )
     _add_time_series_parameters(container, ts_name, param, devices)
@@ -217,10 +225,24 @@ end
 function add_time_series_parameters!(
     container::PSI.OptimizationContainer,
     param::ElectricLoadTimeSeries,
-    devices::Vector{PSY.HybridSystem},
+    devices::AbstractVector{<:PSY.HybridSystem},
     ts_name = "PowerLoad__max_active_power",
 )
     _add_time_series_parameters(container, ts_name, param, devices)
+    return
+end
+
+function PSI._add_parameters!(
+    container::PSI.OptimizationContainer,
+    param::T,
+    devices::U,
+    model::PSI.DeviceModel{D, W},
+) where {
+    T <: Union{RenewablePowerTimeSeries, ElectricLoadTimeSeries},
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+    W <: AbstractHybridFormulation,
+} where {D <: PSY.HybridSystem}
+    add_time_series_parameters!(container, param, collect(devices))
     return
 end
 
