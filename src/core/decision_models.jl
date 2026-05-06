@@ -121,7 +121,7 @@ maximizes profit from energy (e.g. DA/RT spread) subject to internal asset limit
     `InfrastructureSystems.SingleTimeSeries` objects with **distinct names** for each logical key
     (defaults `"DA"` / `"RT"`): see [`hybrid_energy_price_time_series_name`](@ref). Profiles use the
     standard renewable/load names below. Override keys via `model.ext["day_ahead_time_series_key"]`
-    / `"real_time_time_series_key"` on the [`PowerSimulations.DecisionModel`](@extref).
+    / `"real_time_time_series_key"` on the [`PowerSimulations.DecisionModel`](@extref `PowerSimulations.DecisionModel-Union{Tuple{M}, Tuple{PowerSimulations.AbstractProblemTemplate, System, PowerSimulations.Settings}, Tuple{PowerSimulations.AbstractProblemTemplate, System, PowerSimulations.Settings, Union{Nothing, JuMP.Model}}} where M<:PowerSimulations.DecisionProblem`).
 
     | Role | Time series name |
     | :--- | :--- |
