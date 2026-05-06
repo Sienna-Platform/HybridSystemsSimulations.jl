@@ -20,7 +20,7 @@ Depth = 3
 ## Device Formulations
 
 Device formulations for hybrid systems (single PCC with renewable, thermal, and storage).
-Use with [`PowerSimulations.DeviceModel`](@extref PowerSimulations.DeviceModel) for unit
+Use with [`PowerSimulations.DeviceModel`](@extref) for unit
 commitment or economic dispatch.
 
 ```@docs

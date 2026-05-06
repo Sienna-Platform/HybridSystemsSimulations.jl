@@ -5,7 +5,7 @@ const REAL_TIME_TIME_SERIES_KEY = "RT"
 const HYBRID_TIME_SERIES_FEATURE_KEY = :timeseries_key
 const ANCILLARY_PRICE_TIME_SERIES_PREFIX = "HybridSystem__ancillary_service_price__"
 
-"""Scalar energy price time series name for a given user key (e.g. [`DAY_AHEAD_TIME_SERIES_KEY`](@ref))."""
+"""Scalar energy price time series name for a given user key (e.g. `DAY_AHEAD_TIME_SERIES_KEY`)."""
 function hybrid_energy_price_time_series_name(key::AbstractString)
     return "HybridSystem__energy_price__" * string(key)
 end
@@ -121,8 +121,7 @@ maximizes profit from energy (e.g. DA/RT spread) subject to internal asset limit
     `InfrastructureSystems.SingleTimeSeries` objects with **distinct names** for each logical key
     (defaults `"DA"` / `"RT"`): see [`hybrid_energy_price_time_series_name`](@ref). Profiles use the
     standard renewable/load names below. Override keys via `model.ext["day_ahead_time_series_key"]`
-    / `"real_time_time_series_key"` on the [`PowerSimulations.DecisionModel`](@extref PowerSimulations.DecisionModel)
-    (propagated with [`set_time_series_keys!`](@ref)).
+    / `"real_time_time_series_key"` on the [`PowerSimulations.DecisionModel`](@extref).
 
     | Role | Time series name |
     | :--- | :--- |
