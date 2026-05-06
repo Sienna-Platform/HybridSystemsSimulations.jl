@@ -15,15 +15,11 @@ Docs abbreviation: ``\\Pi^*_{\\text{DA},t}`` (USD/MWh). Used in the merchant obj
 
 **Input data:**
 
-  - **System ext:** The [`ext` supplemental data dictionary](@extref additional_fields) on
-    [`PowerSystems.System`](@extref PowerSystems.System) must contain `\"λ_da_df\"`, a
-    `DataFrame` with column `"DateTime"` and one column per bus name. `\"horizon_DA\"::Int`
-    is optional and, when absent, defaults to the `"DateTime"` length.
-  - **Hybrid ext:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
-    reads the same keys from its own [`ext` dictionary](@extref additional_fields). In current
-    implementation, `\"horizon_DA\"` is expected in hybrid `ext` for parameter construction and
-    updates; values are sliced from `\"λ_da_df\"` starting at the current forecast time and used
-    over the model horizon.
+  - **Hybrid-attached time series:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
+    must have a bus-selected scalar day-ahead energy price series whose name is given by
+    `hybrid_energy_price_time_series_name(<day_ahead_key>)` (default key `"DA"`), stored as
+    `InfrastructureSystems.SingleTimeSeries` / deterministic forecast. Values are taken over the
+    model horizon from forecast timestamps starting at the problem initial time.
 """
 struct DayAheadEnergyPrice <: PSI.ObjectiveFunctionParameter end
 
@@ -37,15 +33,10 @@ expression for RT energy and DART spread.
 
 **Input data:**
 
-  - **System ext:** The [`ext` supplemental data dictionary](@extref additional_fields) on
-    [`PowerSystems.System`](@extref PowerSystems.System) must contain `\"λ_rt_df\"`, a
-    `DataFrame` with column `"DateTime"` and one column per bus name. `\"horizon_RT\"::Int`
-    is optional and, when absent, defaults to the `"DateTime"` length.
-  - **Hybrid ext:** Each [`PowerSystems.HybridSystem`](@extref PowerSystems.HybridSystem)
-    reads `\"λ_rt_df\"`, `\"horizon_RT\"`, and a mapping `\"tmap\"` from its own
-    [`ext` dictionary](@extref additional_fields). In current implementation, `\"horizon_RT\"`
-    is expected in hybrid `ext` for parameter construction and updates; `\"tmap\"` aligns
-    real-time steps to day-ahead steps where needed.
+  - **Hybrid-attached time series:** Real-time energy price uses
+    `hybrid_energy_price_time_series_name(<real_time_key>)` (default key `"RT"`). Day-ahead ↔
+    real-time alignment for spread terms uses variable axis sizes and an internal index map derived
+    from model horizons, not hybrid `ext`.
 """
 struct RealTimeEnergyPrice <: PSI.ObjectiveFunctionParameter end
 
@@ -59,11 +50,9 @@ profit term for ancillary services (``sb^{\\text{out}}`` + ``sb^{\\text{in}}``).
 
 **Input data:**
 
-  - **Hybrid ext:** For each service, the hybrid's [`ext` dictionary](@extref additional_fields)
-    contains a key `\"λ_<service_name>\"` (e.g. `\"λ_Regulation_Up\"`) with a `DataFrame` that
-    has column `"DateTime"` and one column per bus name, plus `\"horizon_DA\"` giving the number
-    of day-ahead steps. Used by [`MerchantHybridCooptimizerCase`](@ref) when ancillary services
-    are attached to the hybrid.
+  - **Hybrid-attached time series:** For each attached ancillary product, a scalar series named per
+    `hybrid_ancillary_service_price_time_series_name(<service_name>, <day_ahead_key>)`. Used by
+    [`MerchantHybridCooptimizerCase`](@ref) when services are attached to the hybrid.
 """
 struct AncillaryServicePrice <: PSI.ObjectiveFunctionParameter end
 

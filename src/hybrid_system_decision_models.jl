@@ -212,9 +212,11 @@ function PSI.update_decision_state!(
 
     offset = resolution_ratio - 1
     result_time_index = axes(store_data)[2]
+    max_state_index = PSI.get_num_rows(state_data)
     PSI.set_update_timestamp!(state_data, simulation_time)
     for t in result_time_index
-        state_range = state_data_index:(state_data_index + offset)
+        state_data_index > max_state_index && break
+        state_range = state_data_index:min(max_state_index, state_data_index + offset)
         for name in axes(state_data.values)[1], i in state_range
             # TODO: We could also interpolate here
             state_data.values[name, i] = store_data[name, t]

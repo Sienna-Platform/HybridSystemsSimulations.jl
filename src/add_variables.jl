@@ -2,6 +2,18 @@
 ################### Decision Model Variables ######################
 ###################################################################
 
+function _get_day_ahead_time_steps(
+    container::PSI.OptimizationContainer,
+    devices::Vector{PSY.HybridSystem},
+)
+    da_key = get_day_ahead_time_series_key(container)
+    metadata = first_matching_hybrid_scalar_metadata(
+        first(devices),
+        hybrid_energy_price_time_series_name(da_key),
+    )
+    return 1:time_series_metadata_horizon_steps(metadata)
+end
+
 # Energy Day-Ahead Bids
 function PSI.add_variables!(
     container::PSI.OptimizationContainer,
@@ -10,7 +22,7 @@ function PSI.add_variables!(
     formulation::U,
 ) where {T <: Union{EnergyDABidOut, EnergyDABidIn}, U <: AbstractHybridFormulation}
     @assert !isempty(devices)
-    time_steps = PSY.get_ext(first(devices))["T_da"]
+    time_steps = _get_day_ahead_time_steps(container, devices)
     variable = PSI.add_variable_container!(
         container,
         T(),
@@ -45,7 +57,7 @@ function PSI.add_variables!(
     U <: Union{MerchantHybridEnergyCase, MerchantModelWithReserves},
 }
     @assert !isempty(devices)
-    time_steps = PSY.get_ext(first(devices))["T_da"]
+    time_steps = _get_day_ahead_time_steps(container, devices)
     variable = PSI.add_variable_container!(
         container,
         T(),
@@ -73,7 +85,7 @@ function PSI.add_variables!(
     formulation::MerchantModelWithReserves,
 ) where {W <: Union{BidReserveVariableOut, BidReserveVariableIn}}
     @assert !isempty(devices)
-    time_steps = PSY.get_ext(first(devices))["T_da"]
+    time_steps = _get_day_ahead_time_steps(container, devices)
     # TODO
     # Best way to create this variable? We need to have all services and its type.
     services = Set()

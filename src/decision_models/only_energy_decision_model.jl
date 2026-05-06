@@ -17,19 +17,31 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
         sys,
     )
     PSI.init_model_store_params!(decision_model)
+    set_time_series_keys!(container, decision_model)
 
-    # Create Multiple Time Horizons based on ext horizons
-    ext = PSY.get_ext(sys)
-    dates_da = ext["λ_da_df"][!, "DateTime"]
-    dates_rt = ext["λ_rt_df"][!, "DateTime"]
-    len_DA = get(ext, "horizon_DA", length(dates_da))
-    len_RT = get(ext, "horizon_RT", length(dates_rt))
-    T_da = 1:len_DA
-    T_rt = 1:len_RT
-    container.time_steps = T_rt
+    da_key = get_day_ahead_time_series_key(decision_model)
+    rt_key = get_real_time_time_series_key(decision_model)
+    hybrid_ref = first(collect(PSY.get_components(PSY.HybridSystem, sys)))
+    da_metadata = first_matching_hybrid_scalar_metadata(
+        hybrid_ref,
+        hybrid_energy_price_time_series_name(da_key),
+    )
+    rt_metadata = first_matching_hybrid_scalar_metadata(
+        hybrid_ref,
+        hybrid_energy_price_time_series_name(rt_key),
+    )
+    len_DA_meta = time_series_metadata_horizon_steps(da_metadata)
+    len_RT_meta = time_series_metadata_horizon_steps(rt_metadata)
+    settings = PSI.get_settings(container)
+    T_rt = PSI.get_time_steps(container)
+    len_RT = length(T_rt)
+    T_da = merchant_da_time_step_range(container, hybrid_ref)
+    len_RT_meta < len_RT && error(
+        "Hybrid RT energy price series ($(len_RT_meta) pts) is shorter than model horizon ($(len_RT) steps).",
+    )
 
     # Map for DA to RT
-    tmap = [div(k - 1, Int(length(T_rt) / length(T_da))) + 1 for k in T_rt]
+    tmap = merchant_rt_to_da_tmap(len_RT, length(T_da))
 
     ###############################
     ######## Parameters ###########
@@ -37,11 +49,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
 
     hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
     h_names = PSY.get_name.(hybrids)
-    for h in hybrids
-        PSY.get_ext(h)["T_da"] = T_da
-        PSY.get_ext(h)["tmap"] = tmap
-    end
-
     services = Set()
     for d in hybrids
         union!(services, PSY.get_services(d))
@@ -86,21 +93,12 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
             _hybrids_with_renewable,
             MerchantModelEnergyOnly(),
         )
-        if get(decision_model.ext, "RT", false)
-            add_time_series_parameters!(
-                container,
-                RenewablePowerTimeSeries(),
-                _hybrids_with_renewable,
-                "RenewableDispatch__max_active_power",
-            )
-        else
-            add_time_series_parameters!(
-                container,
-                RenewablePowerTimeSeries(),
-                _hybrids_with_renewable,
-                "RenewableDispatch__max_active_power_da",
-            )
-        end
+        add_time_series_parameters!(
+            container,
+            RenewablePowerTimeSeries(),
+            _hybrids_with_renewable,
+            "RenewableDispatch__max_active_power",
+        )
     end
 
     if !isempty(_hybrids_with_loads)
