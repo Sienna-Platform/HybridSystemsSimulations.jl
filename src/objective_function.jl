@@ -102,7 +102,8 @@ function PSI.add_proportional_cost!(
         cost_term = PSI.proportional_cost(op_cost_data, T(), d, W())
         iszero(cost_term) && continue
         for t in PSI.get_time_steps(container)
-            PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            exp = PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            PSI.add_to_expression!(container, PSI.FixedCostExpression, exp, d, t)
         end
     end
     return
@@ -153,8 +154,8 @@ function PSI.add_proportional_cost!(
         # println("===============================================")
         iszero(cost_term) && continue
         for t in PSI.get_time_steps(container)
-            PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
-            #PSI._add_proportional_term!(container, T(), d, proportional_term * multiplier, t)
+            exp = PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            PSI.add_to_expression!(container, PSI.FixedCostExpression, exp, d, t)
         end
     end
     return
@@ -213,7 +214,8 @@ function PSI.add_proportional_cost!(
         cost_term = PSI.proportional_cost(op_cost_data, T(), d, W())
         iszero(cost_term) && continue
         for t in PSI.get_time_steps(container)
-            PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            exp = PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            PSI.add_to_expression!(container, PSI.FixedCostExpression, exp, d, t)
         end
     end
     return
