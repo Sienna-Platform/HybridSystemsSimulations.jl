@@ -60,5 +60,23 @@
     else
         @test execute!(sim_optimizer; enable_progress_bar = false) ==
               PSI.RunStatus.SUCCESSFULLY_FINALIZED
+
+        # Verify the merchant stage wrote its DA bids to the store: one finite value per
+        # hourly DA slot. (The UC system carries no hybrid, so the FixValueFeedforwards
+        # have no target variables there — pinning UC PCC variables to merchant DA bids
+        # is structurally infeasible while merchant DA buy/sell positions can overlap.)
+        sim_results = SimulationResults(sim_optimizer)
+        merchant_results = get_decision_problem_results(
+            sim_results,
+            "MerchantHybridEnergyCase_Sequence",
+        )
+        for merchant_var in
+            ("EnergyDABidOut__HybridSystem", "EnergyDABidIn__HybridSystem")
+            bid_df = first(values(read_variable(merchant_results, merchant_var)))
+            @test nrow(bid_df) == 24
+            value_cols = [c for c in names(bid_df) if eltype(bid_df[!, c]) <: Real]
+            @test !isempty(value_cols)
+            @test all(isfinite, Matrix(bid_df[!, value_cols]))
+        end
     end
 end

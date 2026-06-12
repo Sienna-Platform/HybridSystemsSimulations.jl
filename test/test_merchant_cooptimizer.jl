@@ -60,14 +60,16 @@ function _run_cooptimizer_case(with_services::Bool)
         name = "MerchantHybridCooptimizerCase_DA",
     )
 
-    build!(decision_optimizer_DA; output_dir = mktempdir())
-    solve!(decision_optimizer_DA)
+    @test build!(decision_optimizer_DA; output_dir = mktempdir()) ==
+          PSI.ModelBuildStatus.BUILT
+    @test solve!(decision_optimizer_DA) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 
     results = PSI.OptimizationProblemResults(decision_optimizer_DA)
     var_results = results.variable_values
     rt_bid_out = read_variable(results, "EnergyRTBidOut__HybridSystem")
     da_bid_out = var_results[PSI.VariableKey{HSS.EnergyDABidOut, HybridSystem}("")]
-    @test length(da_bid_out[!, 1]) == horizon_merchant_rt
+    # DA bid and reserve bid variables span hourly DA slots; RT bids span RT steps.
+    @test length(da_bid_out[!, 1]) == horizon_merchant_da
     @test length(rt_bid_out[!, 1]) == 288
     if with_services
         regup_bid_out =
@@ -77,7 +79,7 @@ function _run_cooptimizer_case(with_services::Bool)
             }(
                 "Reg_Up",
             )]
-        @test length(regup_bid_out[!, 1]) == horizon_merchant_rt
+        @test length(regup_bid_out[!, 1]) == horizon_merchant_da
     end
 end
 

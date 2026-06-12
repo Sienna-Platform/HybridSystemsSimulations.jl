@@ -1,4 +1,8 @@
-function _run_only_energy_case(horizon_merchant_rt::Int, horizon_merchant_da::Int)
+function _run_only_energy_case(
+    horizon_merchant_rt::Int,
+    horizon_merchant_da::Int;
+    use_rt_resolution_for_da::Bool = true,
+)
     injection_steps = max(horizon_merchant_rt, 300)
     sys = PSB.build_RTS_GMLC_RT_sys(;
         raw_data = PSB.RTS_DIR,
@@ -15,9 +19,9 @@ function _run_only_energy_case(horizon_merchant_rt::Int, horizon_merchant_da::In
         bus_name = "chuhsi",
         attach_services = false,
         rt_steps = horizon_merchant_rt,
-        da_steps = horizon_merchant_rt,
+        da_steps = use_rt_resolution_for_da ? horizon_merchant_rt : horizon_merchant_da,
         injection_rt_steps = injection_steps,
-        use_rt_resolution_for_da = true,
+        use_rt_resolution_for_da = use_rt_resolution_for_da,
     )
     strip_non_hybrid_single_time_series!(sys)
     ts_rt = PSY.get_time_series(
@@ -44,19 +48,25 @@ function _run_only_energy_case(horizon_merchant_rt::Int, horizon_merchant_da::In
         name = "MerchantHybridEnergyCase_DA",
     )
 
-    build!(decision_optimizer_DA; output_dir = mktempdir())
-    solve!(decision_optimizer_DA)
+    @test build!(decision_optimizer_DA; output_dir = mktempdir()) ==
+          PSI.ModelBuildStatus.BUILT
+    @test solve!(decision_optimizer_DA) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 
     results = PSI.OptimizationProblemResults(decision_optimizer_DA)
     var_results = results.variable_values
     rt_bid_out = read_variable(results, "EnergyRTBidOut__HybridSystem")
     da_bid_out = var_results[PSI.VariableKey{HSS.EnergyDABidOut, HybridSystem}("")]
-    @test length(da_bid_out[!, 1]) == horizon_merchant_rt
+    # DA bid variables span hourly DA slots over the model horizon; RT bids span RT steps.
+    @test length(da_bid_out[!, 1]) == horizon_merchant_da
     @test length(rt_bid_out[!, 1]) == horizon_merchant_rt
 end
 
 @testset "Test HybridSystem Merchant Decision Model Only Energy" begin
     _run_only_energy_case(288, 24)
+end
+
+@testset "Test HybridSystem Merchant Decision Model Only Energy Hourly DA Prices" begin
+    _run_only_energy_case(288, 24; use_rt_resolution_for_da = false)
 end
 
 @testset "Test HybridSystem Merchant Decision Model Only Energy Extended Horizon" begin

@@ -357,7 +357,10 @@ function _read_hybrid_profile_underlying_values(hybrid::PSY.HybridSystem, ts_nam
         vm = getfield(ta, :values)
         vals = ndims(vm) == 1 ? Vector(vm) : vec(vm[:, 1])
         return vals, first(ts)
-    catch
+    catch e
+        # IS throws ArgumentError when the SingleTimeSeries is missing; anything else
+        # (API drift, data corruption) should fail the test loudly.
+        e isa ArgumentError || rethrow()
         for ts in collect(
             PSY.get_time_series_multiple(
                 hybrid;
@@ -388,7 +391,10 @@ function _strip_single_time_series_from_owner!(sys::PSY.System, owner)
         res = IS.get_resolution(ts)
         try
             PSY.remove_time_series!(sys, IS.SingleTimeSeries, owner, nm; resolution = res)
-        catch
+        catch e
+            # Already-removed series (shared references) surface as ArgumentError; rethrow
+            # anything else so removal failures don't silently leave conflicting series.
+            e isa ArgumentError || rethrow()
         end
     end
     return
