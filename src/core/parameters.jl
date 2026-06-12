@@ -94,4 +94,10 @@ struct CyclingDischargeLimitParameter <: PSI.VariableValueParameter end
 PSI.should_write_resulting_value(::Type{DayAheadEnergyPrice}) = true
 PSI.should_write_resulting_value(::Type{RealTimeEnergyPrice}) = true
 
+# Required by the generic PSI.update_variable_cost! path used when updating
+# DayAheadEnergyPrice during simulation. RealTimeEnergyPrice deliberately has no
+# method: its update must go through the inlined RT path in add_parameters.jl,
+# which applies the RT-to-DA time mapping the generic path knows nothing about.
+PSI._constituent_cost_expression(::DayAheadEnergyPrice) = PSI.ProductionCostExpression
+
 # convert_result_to_natural_units(::Type{EnergyTargetParameter}) = true

@@ -185,7 +185,7 @@ Regularization (if `"regularization" => true`): [`ChargeRegularizationConstraint
 **Objective:**
 
 Adds cost terms for thermal generation (variable and fixed costs), storage variable O&M,
-and penalties for energy target deviations and cycling violations (if enabled).
+renewable variable cost, and penalties for energy target deviations (if enabled).
 """
 struct HybridDispatchWithReserves <: AbstractHybridFormulationWithReserves end
 
@@ -349,7 +349,7 @@ Regularization (if `"regularization" => true`): [`ChargeRegularizationConstraint
 **Objective:**
 
 Adds cost terms for thermal generation (variable and fixed costs), storage variable O&M,
-and penalties for energy target deviations and cycling violations (if enabled).
+renewable variable cost, and penalties for energy target deviations (if enabled).
 """
 struct HybridEnergyOnlyDispatch <: AbstractHybridFormulation end
 
