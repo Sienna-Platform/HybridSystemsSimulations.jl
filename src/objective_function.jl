@@ -5,7 +5,7 @@ PSI.objective_function_multiplier(
 ) = PSI.OBJECTIVE_FUNCTION_POSITIVE
 
 PSI.objective_function_multiplier(
-    ::Union{BatteryEnergySurplusVariable, BatteryEnergySurplusVariable},
+    ::Union{BatteryEnergySurplusVariable, BatteryEnergyShortageVariable},
     ::AbstractHybridFormulation,
 ) = PSI.OBJECTIVE_FUNCTION_POSITIVE
 
@@ -85,6 +85,11 @@ end
 # end
 # HSA 11-6-2024 ===
 
+_battery_variable_cost_curve(cost::PSY.OperationalCost, ::BatteryCharge) =
+    PSY.get_charge_variable_cost(cost)
+_battery_variable_cost_curve(cost::PSY.OperationalCost, ::BatteryDischarge) =
+    PSY.get_discharge_variable_cost(cost)
+
 function PSI.add_proportional_cost!(
     container::PSI.OptimizationContainer,
     ::T,
@@ -96,13 +101,29 @@ function PSI.add_proportional_cost!(
     W <: AbstractHybridFormulation,
 } where {D <: PSY.HybridSystem}
     multiplier = PSI.objective_function_multiplier(T(), W())
+    resolution = PSI.get_resolution(container)
+    dt = Dates.value(Dates.Minute(resolution)) / PSI.MINUTES_IN_HOUR
+    base_power = PSI.get_base_power(container)
     for d in devices
-        op_cost_data = PSY.get_operation_cost(PSY.get_storage(d))
+        storage = PSY.get_storage(d)
+        op_cost_data = PSY.get_operation_cost(storage)
         isnothing(op_cost_data) && continue
         cost_term = PSI.proportional_cost(op_cost_data, T(), d, W())
         iszero(cost_term) && continue
+        cost_per_system_unit = PSI.get_proportional_cost_per_system_unit(
+            cost_term,
+            PSY.get_power_units(_battery_variable_cost_curve(op_cost_data, T())),
+            base_power,
+            PSY.get_base_power(storage),
+        )
         for t in PSI.get_time_steps(container)
-            exp = PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            exp = PSI._add_proportional_term!(
+                container,
+                T(),
+                d,
+                cost_per_system_unit * dt * multiplier,
+                t,
+            )
             PSI.add_to_expression!(container, PSI.FixedCostExpression, exp, d, t)
         end
     end
