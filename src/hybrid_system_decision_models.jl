@@ -193,9 +193,11 @@ function PSI.update_decision_state!(
 ) where {T <: Union{EnergyDABidOut, EnergyDABidIn}}
     @debug "updating decision state $simulation_time"
     state_data = PSI.get_decision_state_data(state, key)
-    model_resolution = PSI.get_resolution(model_params)
     state_resolution = PSI.get_data_resolution(state_data)
-    resolution_ratio = model_resolution ÷ state_resolution
+    # DA bid variables are indexed by hourly DA slots (see merchant_da_time_step_range),
+    # not by the model's RT resolution: each stored value spans one hour of state rows.
+    resolution_ratio =
+        Dates.Millisecond(Dates.Hour(1)) ÷ Dates.Millisecond(state_resolution)
     state_timestamps = state_data.timestamps
     PSI.IS.@assert_op resolution_ratio >= 1
 
@@ -333,9 +335,11 @@ function PSI.update_decision_state!(
 
     offset = resolution_ratio - 1
     result_time_index = axes(store_data)[3]
+    max_state_index = PSI.get_num_rows(state_data)
     PSI.set_update_timestamp!(state_data, simulation_time)
     for t in result_time_index
-        state_range = state_data_index:(state_data_index + offset)
+        state_data_index > max_state_index && break
+        state_range = state_data_index:min(max_state_index, state_data_index + offset)
         for name in device_names, service in service_names, i in state_range
             # TODO: We could also interpolate here
             state_data.values[name, service, i] = store_data[name, service, t]

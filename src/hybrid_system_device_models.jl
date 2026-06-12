@@ -160,7 +160,9 @@ PSI.get_variable_upper_bound(
     ::PSI.EnergyVariable,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_storage_level_limits(PSY.get_storage(d)).max
+) =
+    PSY.get_storage_level_limits(PSY.get_storage(d)).max *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 PSI.get_variable_upper_bound(
     ::PSI.OnVariable,
@@ -212,7 +214,9 @@ PSI.get_variable_lower_bound(
     ::PSI.EnergyVariable,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_storage_level_limits(PSY.get_storage(d)).min
+) =
+    PSY.get_storage_level_limits(PSY.get_storage(d)).min *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 PSI.get_variable_lower_bound(
     ::PSI.OnVariable,
@@ -298,7 +302,9 @@ PSI.initial_condition_default(
     ::PSI.InitialEnergyLevel,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_initial_storage_capacity_level(PSY.get_storage(d))
+) =
+    PSY.get_initial_storage_capacity_level(PSY.get_storage(d)) *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 PSI.initial_condition_variable(
     ::PSI.InitialEnergyLevel,
@@ -414,8 +420,8 @@ PSI.get_initial_parameter_value(
     ::AbstractHybridFormulation,
 ) =
     PSY.get_cycle_limits(PSY.get_storage(d)) *
-    PSY.get_storage_level_limits(PSY.get_storage(d)).max
-#PSY.get_state_of_charge_limits(PSY.get_storage(d)).max
+    PSY.get_storage_level_limits(PSY.get_storage(d)).max *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 ###################################################################
 ######################## Initial Conditions #######################
