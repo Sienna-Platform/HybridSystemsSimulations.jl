@@ -8,10 +8,14 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     model = container.JuMPmodel
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
-    # Resolution
-    RT_resolution = first(PSY.get_time_series_resolutions(sys))
+    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
+    if isempty(hybrids)
+        error(
+            "MerchantHybridCooptimizerCase requires at least one HybridSystem in the " *
+            "System. Add a PSY.HybridSystem to the system or use a different decision model.",
+        )
+    end
     Δt_DA = 1.0
-    Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
     PSI.init_optimization_container!(
         container,
@@ -20,25 +24,18 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     )
     PSI.init_model_store_params!(decision_model)
     set_time_series_keys!(container, decision_model)
+    # Resolution negotiated into settings by PSI.validate_time_series!
+    Δt_RT =
+        Dates.value(Dates.Minute(PSI.get_resolution(container))) / PSI.MINUTES_IN_HOUR
 
-    da_key = get_day_ahead_time_series_key(decision_model)
     rt_key = get_real_time_time_series_key(decision_model)
-    hybrid_ref = first(collect(PSY.get_components(PSY.HybridSystem, sys)))
-    da_metadata = first_matching_hybrid_scalar_metadata(
-        hybrid_ref,
-        hybrid_energy_price_time_series_name(da_key),
-    )
+    hybrid_ref = first(hybrids)
     rt_metadata = first_matching_hybrid_scalar_metadata(
         hybrid_ref,
         hybrid_energy_price_time_series_name(rt_key),
     )
-    len_DA_meta = time_series_metadata_horizon_steps(da_metadata)
     len_RT_meta = time_series_metadata_horizon_steps(rt_metadata)
-    settings = PSI.get_settings(container)
-    h_ms = Dates.value(PSI.get_horizon(settings))
-    da_slot_ms = Dates.value(Dates.Millisecond(Dates.Hour(1)))
-    n_DA = max(1, div(h_ms, da_slot_ms))
-    T_da = 1:min(n_DA, len_DA_meta)
+    T_da = merchant_da_time_step_range(container, hybrid_ref)
 
     T_rt = PSI.get_time_steps(container)
     len_RT = length(T_rt)
@@ -54,7 +51,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     ######## Parameters ###########
     ###############################
 
-    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
     h_names = PSY.get_name.(hybrids)
     services = Set()
     for h in hybrids
@@ -812,8 +808,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
 
     # Storage Variable Cost
     if !isempty(_hybrids_with_storage)
-        p_ch = PSI.get_variable(container, BatteryCharge(), PSY.HybridSystem)
-        p_ds = PSI.get_variable(container, BatteryDischarge(), PSY.HybridSystem)
         if PSI.get_attribute(device_model, "regularization")
             PSI.add_proportional_cost!(
                 container,
@@ -850,19 +844,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             C_th_var = get_thermal_marginal_cost_per_system_unit(container, dev, t)
             lin_cost_p_th = Δt_RT * C_th_var * p_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_th)
-        end
-        if !isnothing(dev.storage)
-            storage_cost = PSY.get_operation_cost(dev.storage)
-            charge_vom = PSY.get_proportional_term(
-                PSY.get_vom_cost(PSY.get_charge_variable_cost(storage_cost)),
-            )
-            discharge_vom = PSY.get_proportional_term(
-                PSY.get_vom_cost(PSY.get_discharge_variable_cost(storage_cost)),
-            )
-            lin_cost_p_ch = 100.0 * Δt_RT * charge_vom * p_ch[name, t]
-            lin_cost_p_ds = 100.0 * Δt_RT * discharge_vom * p_ds[name, t]
-            PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ch)
-            PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ds)
         end
         if length(T_da) == 24 && !isempty(services)
             dev_services = PSY.get_services(dev)

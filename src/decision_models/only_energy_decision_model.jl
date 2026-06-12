@@ -5,11 +5,14 @@
 function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyCase})
     container = PSI.get_optimization_container(decision_model)
     sys = PSI.get_system(decision_model)
-    # Resolution
+    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
+    if isempty(hybrids)
+        error(
+            "MerchantHybridEnergyCase requires at least one HybridSystem in the " *
+            "System. Add a PSY.HybridSystem to the system or use a different decision model.",
+        )
+    end
     Δt_DA = 1.0
-    RT_resolution = first(PSY.get_time_series_resolutions(sys))
-    sys = PSI.get_system(decision_model)
-    Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
     PSI.init_optimization_container!(
         container,
@@ -18,21 +21,17 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
     )
     PSI.init_model_store_params!(decision_model)
     set_time_series_keys!(container, decision_model)
+    # Resolution negotiated into settings by PSI.validate_time_series!
+    Δt_RT =
+        Dates.value(Dates.Minute(PSI.get_resolution(container))) / PSI.MINUTES_IN_HOUR
 
-    da_key = get_day_ahead_time_series_key(decision_model)
     rt_key = get_real_time_time_series_key(decision_model)
-    hybrid_ref = first(collect(PSY.get_components(PSY.HybridSystem, sys)))
-    da_metadata = first_matching_hybrid_scalar_metadata(
-        hybrid_ref,
-        hybrid_energy_price_time_series_name(da_key),
-    )
+    hybrid_ref = first(hybrids)
     rt_metadata = first_matching_hybrid_scalar_metadata(
         hybrid_ref,
         hybrid_energy_price_time_series_name(rt_key),
     )
-    len_DA_meta = time_series_metadata_horizon_steps(da_metadata)
     len_RT_meta = time_series_metadata_horizon_steps(rt_metadata)
-    settings = PSI.get_settings(container)
     T_rt = PSI.get_time_steps(container)
     len_RT = length(T_rt)
     T_da = merchant_da_time_step_range(container, hybrid_ref)
@@ -47,7 +46,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
     ######## Parameters ###########
     ###############################
 
-    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
     h_names = PSY.get_name.(hybrids)
     services = Set()
     for d in hybrids
@@ -55,6 +53,14 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
     end
 
     device_model = PSI.get_model(PSI.get_template(decision_model), PSY.HybridSystem)
+    if device_model === nothing
+        error(
+            "MerchantHybridEnergyCase requires a DeviceModel for HybridSystem in the " *
+            "ProblemTemplate. Call set_device_model!(template, DeviceModel(PSY.HybridSystem, " *
+            "HybridEnergyOnlyDispatch)) or another appropriate hybrid formulation before " *
+            "constructing the DecisionModel.",
+        )
+    end
 
     ###############################
     ######## Variables ############
@@ -261,6 +267,18 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
         p_ds = PSI.get_variable(container, BatteryDischarge(), PSY.HybridSystem)
         e_st = PSI.get_variable(container, PSI.EnergyVariable(), PSY.HybridSystem)
         status_st = PSI.get_variable(container, BatteryStatus(), PSY.HybridSystem)
+        PSI.add_proportional_cost!(
+            container,
+            BatteryCharge(),
+            _hybrids_with_storage,
+            MerchantModelEnergyOnly(),
+        )
+        PSI.add_proportional_cost!(
+            container,
+            BatteryDischarge(),
+            _hybrids_with_storage,
+            MerchantModelEnergyOnly(),
+        )
         if PSI.get_attribute(device_model, "regularization")
             PSI.add_proportional_cost!(
                 container,
@@ -294,19 +312,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
                 C_th_var = get_thermal_marginal_cost_per_system_unit(container, dev, t)
                 lin_cost_p_th = Δt_RT * C_th_var * p_th[name, t]
                 PSI.add_to_objective_invariant_expression!(container, lin_cost_p_th)
-            end
-            if !isnothing(dev.storage)
-                storage_cost = PSY.get_operation_cost(dev.storage)
-                charge_vom = PSY.get_proportional_term(
-                    PSY.get_vom_cost(PSY.get_charge_variable_cost(storage_cost)),
-                )
-                discharge_vom = PSY.get_proportional_term(
-                    PSY.get_vom_cost(PSY.get_discharge_variable_cost(storage_cost)),
-                )
-                lin_cost_p_ch = Δt_RT * charge_vom * p_ch[name, t]
-                lin_cost_p_ds = Δt_RT * discharge_vom * p_ds[name, t]
-                PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ch)
-                PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ds)
             end
         end
     end
@@ -527,7 +532,9 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridEnergyC
             η_ch = storage.efficiency.in
             η_ds = storage.efficiency.out
             inv_η_ds = 1.0 / η_ds
-            E_max = PSY.get_storage_level_limits(storage).max
+            E_max =
+                PSY.get_storage_level_limits(storage).max *
+                PSY.get_storage_capacity(storage)
             constraint_cycling_charge[name] = JuMP.@constraint(
                 model,
                 inv_η_ds * Δt_RT * sum(p_ds[name, t] for t in T_rt) <= Cycles * E_max

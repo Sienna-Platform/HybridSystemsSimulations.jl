@@ -7,10 +7,14 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
     model = container.JuMPmodel
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
-    # Resolution
-    RT_resolution = first(PSY.get_time_series_resolutions(sys))
+    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
+    if isempty(hybrids)
+        error(
+            "MerchantHybridBilevelCase requires at least one HybridSystem in the " *
+            "System. Add a PSY.HybridSystem to the system or use a different decision model.",
+        )
+    end
     Δt_DA = 1.0
-    Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
     PSI.init_optimization_container!(
         container,
@@ -19,25 +23,18 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
     )
     PSI.init_model_store_params!(decision_model)
     set_time_series_keys!(container, decision_model)
+    # Resolution negotiated into settings by PSI.validate_time_series!
+    Δt_RT =
+        Dates.value(Dates.Minute(PSI.get_resolution(container))) / PSI.MINUTES_IN_HOUR
 
-    da_key = get_day_ahead_time_series_key(decision_model)
     rt_key = get_real_time_time_series_key(decision_model)
-    hybrid_ref = first(collect(PSY.get_components(PSY.HybridSystem, sys)))
-    da_metadata = first_matching_hybrid_scalar_metadata(
-        hybrid_ref,
-        hybrid_energy_price_time_series_name(da_key),
-    )
+    hybrid_ref = first(hybrids)
     rt_metadata = first_matching_hybrid_scalar_metadata(
         hybrid_ref,
         hybrid_energy_price_time_series_name(rt_key),
     )
-    len_DA_meta = time_series_metadata_horizon_steps(da_metadata)
     len_RT_meta = time_series_metadata_horizon_steps(rt_metadata)
-    settings = PSI.get_settings(container)
-    h_ms = Dates.value(PSI.get_horizon(settings))
-    da_slot_ms = Dates.value(Dates.Millisecond(Dates.Hour(1)))
-    n_DA = max(1, div(h_ms, da_slot_ms))
-    T_da = 1:min(n_DA, len_DA_meta)
+    T_da = merchant_da_time_step_range(container, hybrid_ref)
 
     T_rt = PSI.get_time_steps(container)
     len_RT = length(T_rt)
@@ -53,7 +50,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
     ######## Parameters ###########
     ###############################
 
-    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
     h_names = PSY.get_name.(hybrids)
     services = Set()
     for h in hybrids
