@@ -6,12 +6,9 @@ function _get_day_ahead_time_steps(
     container::PSI.OptimizationContainer,
     devices::Vector{PSY.HybridSystem},
 )
-    da_key = get_day_ahead_time_series_key(container)
-    metadata = first_matching_hybrid_scalar_metadata(
-        first(devices),
-        hybrid_energy_price_time_series_name(da_key),
-    )
-    return 1:time_series_metadata_horizon_steps(metadata)
+    # Must match the range used for DA constraints, parameters, and objective terms;
+    # otherwise trailing DA variables are created that no constraint or cost touches.
+    return merchant_da_time_step_range(container, first(devices))
 end
 
 # Energy Day-Ahead Bids

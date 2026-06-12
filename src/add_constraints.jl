@@ -12,13 +12,8 @@ function _has_reserve_slack_variables(
     container::PSI.OptimizationContainer,
     ::Type{D},
 ) where {D <: PSY.HybridSystem}
-    try
-        PSI.get_variable(container, SlackReserveUp(), D)
-        PSI.get_variable(container, SlackReserveDown(), D)
-        return true
-    catch
-        return false
-    end
+    return PSI.has_container_key(container, SlackReserveUp, D) &&
+           PSI.has_container_key(container, SlackReserveDown, D)
 end
 
 ############ Total Power Constraints, HybridSystem ################
@@ -936,7 +931,8 @@ function _add_constraints_cyclingcharge!(
         #        param_value
         #    )
         #else
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -971,7 +967,8 @@ function _add_constraints_cyclingcharge_withreserves!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -998,7 +995,8 @@ function _add_constraints_cyclingcharge_withreserves!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_storage_level_limits(storage).max
+            E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1036,7 +1034,8 @@ function _add_constraints_cyclingcharge_decisionmodel!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1100,7 +1099,8 @@ function _add_constraints_cyclingdischarge!(
         #        sum(discharge_var[ci_name, :]) <= param_value
         #    )
         #else
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1136,7 +1136,8 @@ function _add_constraints_cyclingdischarge_withreserves!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1163,7 +1164,8 @@ function _add_constraints_cyclingdischarge_withreserves!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_storage_level_limits(storage).max
+            E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1202,7 +1204,8 @@ function _add_constraints_cyclingdischarge_decisionmodel!(
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
 
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1261,7 +1264,8 @@ function PSI.add_constraints!(
     for d in devices
         name = PSY.get_name(d)
         storage = PSY.get_storage(d)
-        target = PSY.get_storage_target(storage)
+        # storage_target is a ratio of storage capacity; EnergyVariable is in energy units.
+        target = PSY.get_storage_target(storage) * PSY.get_storage_capacity(storage)
         constraint_container[name] = JuMP.@constraint(
             PSI.get_jump_model(container),
             energy_var[name, time_steps[end]] - surplus_var[name] + shortfall_var[name] == target
@@ -1660,7 +1664,8 @@ function _add_constraints_reservecoverage_withreserves!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage).in
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         sustained_param = efficiency * num_periods * fraction_of_hour
         con[ci_name, 1] = JuMP.@constraint(
             container.JuMPmodel,
@@ -1789,7 +1794,8 @@ function _add_constraints_reservecoverage_withreserves_endofperiod!(
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         efficiency = PSY.get_efficiency(storage).in
         sustained_param = efficiency * fraction_of_hour * num_periods
         con[ci_name, t] = JuMP.@constraint(
@@ -1896,7 +1902,7 @@ function _add_constraints_discharging_reservelimit!(
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
-        max_limit = PSY.get_input_active_power_limits(PSY.get_storage(device)).max
+        max_limit = PSY.get_output_active_power_limits(PSY.get_storage(device)).max
         con_ub[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
             p_ds[ci_name, t] + reg_ds_up[ci_name, t] <= max_limit * status_st[ci_name, t]
@@ -2778,7 +2784,9 @@ function add_constraints!(
     for dev in devices
         n = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        VOM = storage.operation_cost.variable.cost
+        VOM = PSY.get_proportional_term(
+            PSY.get_vom_cost(PSY.get_charge_variable_cost(PSY.get_operation_cost(storage))),
+        )
         η_ch = storage.efficiency.in * Δt_RT
         for t in time_steps
             con[n, t] = JuMP.@constraint(
@@ -2835,8 +2843,8 @@ function add_constraints!(
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
     W <: MerchantModelWithReserves,
 } where {D <: PSY.HybridSystem}
-    # Temp Fix
-    Δt_RT = 1 / 12
+    resolution = PSI.get_resolution(container)
+    Δt_RT = Dates.value(Dates.Minute(resolution)) / PSI.MINUTES_IN_HOUR
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     con = PSI.add_constraints_container!(container, T(), D, names, time_steps)
@@ -2852,7 +2860,11 @@ function add_constraints!(
     for dev in devices
         n = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        VOM = storage.operation_cost.variable.cost
+        VOM = PSY.get_proportional_term(
+            PSY.get_vom_cost(
+                PSY.get_discharge_variable_cost(PSY.get_operation_cost(storage)),
+            ),
+        )
         inv_η_ds = Δt_RT / storage.efficiency.out
         # Written to match latex model
         for t in time_steps
@@ -2890,7 +2902,8 @@ function add_constraints!(
     for dev in devices
         n = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        e_max_ds = PSY.get_storage_level_limits(storage).max
+        e_max_ds =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         for t in time_steps
             assignment_constraint[n, t] =
                 JuMP.@constraint(jm, k_variable[n, t] == primal_var[n, t] - e_max_ds)
@@ -3145,7 +3158,7 @@ function add_constraints!(
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
-    dual_var = PSI.get_variable(container, μDsLb(), D)
+    dual_var = PSI.get_variable(container, μDsUb(), D)
     primal_var = PSI.get_variable(container, BatteryDischarge(), D)
     binary = PSI.get_variable(container, BatteryStatus(), D)
     k_variable =
@@ -3209,7 +3222,7 @@ function add_constraints!(
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
-    dual_var = PSI.get_variable(container, μDsLb(), D)
+    dual_var = PSI.get_variable(container, μChUb(), D)
     primal_var = PSI.get_variable(container, BatteryCharge(), D)
     binary = PSI.get_variable(container, BatteryStatus(), D)
     k_variable =
@@ -3226,7 +3239,7 @@ function add_constraints!(
         for t in time_steps
             assignment_constraint[n, t] = JuMP.@constraint(
                 jm,
-                k_variable[n, t] == primal_var[n, t] - (1.0 - p_max_ch) * binary[n, t]
+                k_variable[n, t] == primal_var[n, t] - (1.0 - binary[n, t]) * p_max_ch
             )
             sos_constraint[n, t] =
                 JuMP.@constraint(jm, [k_variable[n, t], dual_var[n, t]] in JuMP.SOS1())
@@ -3306,9 +3319,9 @@ function add_constraints!(
         )
 
         for t in time_steps[2:end]
-            assignment_constraint[ci_name, 1] = JuMP.@constraint(
+            assignment_constraint[ci_name, t] = JuMP.@constraint(
                 jm,
-                k_variable[ci_name, 1] ==
+                k_variable[ci_name, t] ==
                 energy_var[ci_name, t - 1] +
                 fraction_of_hour * (
                     charge_var[ci_name, t] * efficiency.in -
@@ -3368,9 +3381,9 @@ function add_constraints!(
         )
 
         for t in time_steps[2:end]
-            assignment_constraint[ci_name, 1] = JuMP.@constraint(
+            assignment_constraint[ci_name, t] = JuMP.@constraint(
                 jm,
-                k_variable[ci_name, 1] ==
+                k_variable[ci_name, t] ==
                 energy_var[ci_name, t - 1] +
                 fraction_of_hour * (
                     charge_var[ci_name, t] * efficiency.in -
@@ -3410,7 +3423,8 @@ function add_constraints!(
     for dev in devices
         name = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        _, E_max = PSY.get_storage_level_limits(storage)
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         η_ch = storage.efficiency.in * Δt_RT
         assignment_constraint[name] = JuMP.@constraint(
             jm,
@@ -3435,7 +3449,7 @@ function add_constraints!(
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     k_variable = PSI.get_variable(container, ComplementarySlackVarCyclingDischarge(), D)
-    charge_var = PSI.get_variable(container, BatteryDischarge(), D)
+    discharge_var = PSI.get_variable(container, BatteryDischarge(), D)
     dual_var = PSI.get_variable(container, κStDs(), D)
     assignment_constraint =
         PSI.add_constraints_container!(container, T(), D, names; meta = "eq")
@@ -3447,12 +3461,13 @@ function add_constraints!(
     for dev in devices
         name = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        _, E_max = PSY.get_storage_level_limits(storage)
-        η_ch = storage.efficiency.in * Δt_RT
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
+        inv_η_ds = Δt_RT / storage.efficiency.out
         assignment_constraint[name] = JuMP.@constraint(
             jm,
             k_variable[name] ==
-            sum(charge_var[name, t] * η_ch for t in time_steps) - Cycles * E_max
+            sum(discharge_var[name, t] * inv_η_ds for t in time_steps) - Cycles * E_max
         )
         sos_constraint[name] =
             JuMP.@constraint(jm, [k_variable[name], dual_var[name]] in JuMP.SOS1())

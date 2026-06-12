@@ -89,7 +89,10 @@ function _unwrap_hybrid_underlying_single_time_series(
             return PSY.get_time_series(IS.SingleTimeSeries, device, ts_name)
         end
         return PSY.get_time_series(IS.SingleTimeSeries, device, ts_name; feat_kw...)
-    catch
+    catch e
+        # IS throws ArgumentError when the series is missing or ambiguous at this
+        # type; only then fall back to the transformed DeterministicSingleTimeSeries.
+        e isa ArgumentError || rethrow()
         if isempty(feat_kw)
             dst = PSY.get_time_series(
                 IS.DeterministicSingleTimeSeries,
@@ -256,8 +259,12 @@ function PSI._update_parameter_values!(
     template = PSI.get_template(model)
     device_model = PSI.get_model(template, PSY.HybridSystem)
     components = PSI.get_available_components(device_model, PSI.get_system(model))
+    # The parameter is only registered for the hybrids that own this profile
+    # (e.g. hybrids with a renewable unit); skip the rest like PSI's generic method does.
+    registered_names = PSI.get_component_names(attributes)
     ts_uuids = Set{String}()
     for component in components
+        PSY.get_name(component) in registered_names || continue
         ts_uuid = PSI._get_ts_uuid(attributes, PSY.get_name(component))
         if !(ts_uuid in ts_uuids)
             ts_vector = _hybrid_profile_parameter_slice(
