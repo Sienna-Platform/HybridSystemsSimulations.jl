@@ -8,39 +8,50 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     model = container.JuMPmodel
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
-    # Resolution
-    RT_resolution = PSY.get_time_series_resolution(sys)
+    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
+    if isempty(hybrids)
+        error(
+            "MerchantHybridCooptimizerCase requires at least one HybridSystem in the " *
+            "System. Add a PSY.HybridSystem to the system or use a different decision model.",
+        )
+    end
     Δt_DA = 1.0
-    Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
-    PSI.init_optimization_container!(container, PSI.CopperPlatePowerModel, sys)
+    PSI.init_optimization_container!(
+        container,
+        PSI.get_network_model(PSI.get_template(decision_model)),
+        sys,
+    )
     PSI.init_model_store_params!(decision_model)
+    set_time_series_keys!(container, decision_model)
+    # Resolution negotiated into settings by PSI.validate_time_series!
+    Δt_RT =
+        Dates.value(Dates.Minute(PSI.get_resolution(container))) / PSI.MINUTES_IN_HOUR
 
-    # Create Multiple Time Horizons based on ext horizons
-    ext = PSY.get_ext(sys)
-    dates_da = ext["λ_da_df"][!, "DateTime"]
-    dates_rt = ext["λ_rt_df"][!, "DateTime"]
-    len_DA = get(ext, "horizon_DA", length(dates_da))
-    len_RT = get(ext, "horizon_RT", length(dates_rt))
-    T_da = 1:len_DA
-    T_rt = 1:len_RT
-    container.time_steps = T_rt
+    rt_key = get_real_time_time_series_key(decision_model)
+    hybrid_ref = first(hybrids)
+    rt_metadata = first_matching_hybrid_scalar_metadata(
+        hybrid_ref,
+        hybrid_energy_price_time_series_name(rt_key),
+    )
+    len_RT_meta = time_series_metadata_horizon_steps(rt_metadata)
+    T_da = merchant_da_time_step_range(container, hybrid_ref)
+
+    T_rt = PSI.get_time_steps(container)
+    len_RT = length(T_rt)
+    len_RT_meta < len_RT && error(
+        "Hybrid RT energy price series ($(len_RT_meta) pts) is shorter than model horizon ($(len_RT) steps).",
+    )
     time_steps = T_rt
 
     # Map for DA to RT
-    tmap = [div(k - 1, Int(length(T_rt) / length(T_da))) + 1 for k in T_rt]
+    tmap = merchant_rt_to_da_tmap(len_RT, length(T_da))
 
     ###############################
     ######## Parameters ###########
     ###############################
 
-    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
     h_names = PSY.get_name.(hybrids)
-    for h in hybrids
-        PSY.get_ext(h)["T_da"] = T_da
-        PSY.get_ext(h)["tmap"] = tmap
-    end
-
     services = Set()
     for h in hybrids
         union!(services, PSY.get_services(h))
@@ -48,7 +59,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
 
     if !isempty(services)
         PSI.add_variables!(container, TotalReserve, hybrids, MerchantModelWithReserves())
-        if len_DA == 24
+        if length(T_da) == 24
             PSI.add_variables!(
                 container,
                 SlackReserveUp,
@@ -65,6 +76,14 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
     end
 
     device_model = PSI.get_model(PSI.get_template(decision_model), PSY.HybridSystem)
+    if device_model === nothing
+        error(
+            "MerchantHybridCooptimizerCase requires a DeviceModel for HybridSystem in the " *
+            "ProblemTemplate. Call set_device_model!(template, DeviceModel(PSY.HybridSystem, " *
+            "HybridDispatchWithReserves)) or another appropriate hybrid formulation before " *
+            "constructing the DecisionModel.",
+        )
+    end
     device_formulation = PSI.get_formulation(device_model)
     network_model = PSI.get_network_model(PSI.get_template(decision_model))
 
@@ -261,21 +280,12 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             _hybrids_with_renewable,
             MerchantModelWithReserves(),
         )
-        if get(decision_model.ext, "RT", false)
-            add_time_series_parameters!(
-                container,
-                RenewablePowerTimeSeries(),
-                _hybrids_with_renewable,
-                "RenewableDispatch__max_active_power",
-            )
-        else
-            add_time_series_parameters!(
-                container,
-                RenewablePowerTimeSeries(),
-                _hybrids_with_renewable,
-                "RenewableDispatch__max_active_power_da",
-            )
-        end
+        add_time_series_parameters!(
+            container,
+            RenewablePowerTimeSeries(),
+            _hybrids_with_renewable,
+            "RenewableDispatch__max_active_power",
+        )
         PSI.add_variables!(
             container,
             RenewableReserveVariable,
@@ -766,10 +776,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             PSI.add_to_objective_variant_expression!(container, service_in_cost)
         end
         if !isnothing(dev.thermal_unit)
-            # Workaround
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            C_th_fix = three_cost.fixed # $/h
+            C_th_fix = get_thermal_fixed_cost_per_hour(dev)
             lin_cost_on_th = Δt_DA * C_th_fix * on_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_on_th)
         end
@@ -801,8 +808,6 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
 
     # Storage Variable Cost
     if !isempty(_hybrids_with_storage)
-        p_ch = PSI.get_variable(container, BatteryCharge(), PSY.HybridSystem)
-        p_ds = PSI.get_variable(container, BatteryDischarge(), PSY.HybridSystem)
         if PSI.get_attribute(device_model, "regularization")
             PSI.add_proportional_cost!(
                 container,
@@ -819,7 +824,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
         end
     end
 
-    if len_DA == 24
+    if length(T_da) == 24 && !isempty(services)
         res_slack_up = PSI.get_variable(container, SlackReserveUp(), PSY.HybridSystem)
         res_slack_dn = PSI.get_variable(container, SlackReserveDown(), PSY.HybridSystem)
     end
@@ -836,25 +841,11 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
         PSI.add_to_objective_variant_expression!(container, lin_cost_dart_out)
         PSI.add_to_objective_variant_expression!(container, lin_cost_dart_in)
         if !isnothing(dev.thermal_unit)
-            # Workaround to add ThermalCost with a Linear Cost Since the model doesn't include PWL cost
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            first_part = three_cost.variable[1]
-            second_part = three_cost.variable[2]
-            slope = (second_part[1] - first_part[1]) / (second_part[2] - first_part[2]) # $/MWh
-            fix_cost = three_cost.fixed # $/h
-            C_th_var = slope * 100.0 # Multiply by 100 to transform to $/pu
+            C_th_var = get_thermal_marginal_cost_per_system_unit(container, dev, t)
             lin_cost_p_th = Δt_RT * C_th_var * p_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_p_th)
         end
-        if !isnothing(dev.storage)
-            VOM = dev.storage.operation_cost.variable.cost
-            lin_cost_p_ch = 100.0 * Δt_RT * VOM * p_ch[name, t]
-            lin_cost_p_ds = 100.0 * Δt_RT * VOM * p_ds[name, t]
-            PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ch)
-            PSI.add_to_objective_invariant_expression!(container, lin_cost_p_ds)
-        end
-        if len_DA == 24
+        if length(T_da) == 24 && !isempty(services)
             dev_services = PSY.get_services(dev)
             for service in dev_services
                 service_name = PSY.get_name(service)
@@ -993,7 +984,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridCooptim
             MerchantModelWithReserves(),
         )
 
-        if PSI.get_attribute(device_model, "cycling")
+        if something(PSI.get_attribute(device_model, "cycling"), false)
             PSI.add_constraints!(
                 container,
                 CyclingCharge,

@@ -2,6 +2,20 @@
 #################### Device Model Constraints #####################
 ###################################################################
 
+"""Map RT step `rt_t` to a DA index when RT and DA horizon lengths need not divide evenly."""
+function _map_rt_to_da_index(rt_t::Int, rt_count::Int, da_count::Int)
+    @assert rt_count >= 1 && da_count >= 1
+    return min(da_count, div((rt_t - 1) * da_count, rt_count) + 1)
+end
+
+function _has_reserve_slack_variables(
+    container::PSI.OptimizationContainer,
+    ::Type{D},
+) where {D <: PSY.HybridSystem}
+    return PSI.has_container_key(container, SlackReserveUp, D) &&
+           PSI.has_container_key(container, SlackReserveDown, D)
+end
+
 ############ Total Power Constraints, HybridSystem ################
 function PSI.add_constraints!(
     container::PSI.OptimizationContainer,
@@ -31,7 +45,8 @@ function _add_constraints_statusout!(
     names = [PSY.get_name(d) for d in devices]
     varon = PSI.get_variable(container, PSI.ReservationVariable(), D)
     p_out = PSI.get_variable(container, PSI.ActivePowerOutVariable(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -75,8 +90,10 @@ function _add_constraints_statusout_withreserves!(
     p_out = PSI.get_variable(container, PSI.ActivePowerOutVariable(), D)
     res_out_up = PSI.get_expression(container, TotalReserveOutUpExpression(), D)
     res_out_down = PSI.get_expression(container, TotalReserveOutDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -111,8 +128,10 @@ function _add_constraints_statusout_withreserves!(
     res_out_down = PSI.get_expression(container, TotalReserveOutDownExpression(), D)
     #serv_reg_out_up = PSI.get_expression(container, ServedReserveOutUpExpression(), D)
     #serv_reg_out_down = PSI.get_expression(container, ServedReserveOutDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -162,7 +181,8 @@ function _add_constraints_statusin!(
     names = [PSY.get_name(d) for d in devices]
     varon = PSI.get_variable(container, PSI.ReservationVariable(), D)
     p_in = PSI.get_variable(container, PSI.ActivePowerInVariable(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -206,8 +226,10 @@ function _add_constraints_statusin_withreserves!(
     p_in = PSI.get_variable(container, PSI.ActivePowerInVariable(), D)
     res_in_up = PSI.get_expression(container, TotalReserveInUpExpression(), D)
     res_in_down = PSI.get_expression(container, TotalReserveInDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -243,8 +265,10 @@ function _add_constraints_statusin_withreserves!(
     res_in_down = PSI.get_expression(container, TotalReserveInDownExpression(), D)
     #serv_reg_in_up = PSI.get_expression(container, ServedReserveInUpExpression(), D)
     #serv_reg_in_down = PSI.get_expression(container, ServedReserveInDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -535,7 +559,8 @@ function _add_constraints_thermalon_variableon!(
     names = [PSY.get_name(d) for d in devices]
     varon = PSI.get_variable(container, PSI.OnVariable(), D)
     p_th = PSI.get_variable(container, ThermalPower(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -576,7 +601,8 @@ function _add_constraints_thermalon_variableoff!(
     names = [PSY.get_name(d) for d in devices]
     varon = PSI.get_variable(container, PSI.OnVariable(), D)
     p_th = PSI.get_variable(container, ThermalPower(), D)
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -620,7 +646,7 @@ function _add_constraints_batterychargeon!(
     status_st = PSI.get_variable(container, BatteryStatus(), D)
     p_ch = PSI.get_variable(container, BatteryCharge(), D)
     con_ub_ch =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -662,7 +688,7 @@ function _add_constraints_batterydischargeon!(
     status_st = PSI.get_variable(container, BatteryStatus(), D)
     p_ds = PSI.get_variable(container, BatteryDischarge(), D)
     con_ub_ds =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -905,7 +931,8 @@ function _add_constraints_cyclingcharge!(
         #        param_value
         #    )
         #else
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -940,7 +967,8 @@ function _add_constraints_cyclingcharge_withreserves!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -967,7 +995,8 @@ function _add_constraints_cyclingcharge_withreserves!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_storage_level_limits(storage).max
+            E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1005,7 +1034,8 @@ function _add_constraints_cyclingcharge_decisionmodel!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1069,7 +1099,8 @@ function _add_constraints_cyclingdischarge!(
         #        sum(discharge_var[ci_name, :]) <= param_value
         #    )
         #else
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1105,7 +1136,8 @@ function _add_constraints_cyclingdischarge_withreserves!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1132,7 +1164,8 @@ function _add_constraints_cyclingdischarge_withreserves!(
                 ) <= param_value
             )
         else
-            E_max = PSY.get_storage_level_limits(storage).max
+            E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
             cycles_per_day = PSY.get_cycle_limits(storage)
             cycles_in_horizon =
                 cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1171,7 +1204,8 @@ function _add_constraints_cyclingdischarge_decisionmodel!(
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage)
 
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         cycles_per_day = PSY.get_cycle_limits(storage)
         cycles_in_horizon =
             cycles_per_day * fraction_of_hour * length(time_steps) / HOURS_IN_DAY
@@ -1230,7 +1264,8 @@ function PSI.add_constraints!(
     for d in devices
         name = PSY.get_name(d)
         storage = PSY.get_storage(d)
-        target = PSY.get_storage_target(storage)
+        # storage_target is a ratio of storage capacity; EnergyVariable is in energy units.
+        target = PSY.get_storage_target(storage) * PSY.get_storage_capacity(storage)
         constraint_container[name] = JuMP.@constraint(
             PSI.get_jump_model(container),
             energy_var[name, time_steps[end]] - surplus_var[name] + shortfall_var[name] == target
@@ -1263,8 +1298,8 @@ function PSI.add_constraints!(
         ChargeRegularizationConstraint(),
         V,
         names,
-        time_steps,
-        meta="ub",
+        time_steps;
+        meta = "ub",
     )
 
     constraint_lb = PSI.add_constraints_container!(
@@ -1272,8 +1307,8 @@ function PSI.add_constraints!(
         ChargeRegularizationConstraint(),
         V,
         names,
-        time_steps,
-        meta="lb",
+        time_steps;
+        meta = "lb",
     )
 
     if has_services
@@ -1356,8 +1391,8 @@ function PSI.add_constraints!(
         DischargeRegularizationConstraint(),
         V,
         names,
-        time_steps,
-        meta="ub",
+        time_steps;
+        meta = "ub",
     )
 
     constraint_lb = PSI.add_constraints_container!(
@@ -1365,8 +1400,8 @@ function PSI.add_constraints!(
         DischargeRegularizationConstraint(),
         V,
         names,
-        time_steps,
-        meta="lb",
+        time_steps;
+        meta = "lb",
     )
 
     if has_services
@@ -1442,7 +1477,7 @@ function _add_constraints_renewablelimit!(
     p_re = PSI.get_variable(container, RenewablePower(), D)
     names = [PSY.get_name(d) for d in devices]
     con_ub_re =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
     param_container = PSI.get_parameter(container, RenewablePowerTimeSeries(), D)
     for device in devices
         ci_name = PSY.get_name(device)
@@ -1489,8 +1524,10 @@ function _add_thermallimit_withreserves!(
     p_th = PSI.get_variable(container, ThermalPower(), D)
     reg_th_up = PSI.get_expression(container, ThermalReserveUpExpression(), D)
     reg_th_dn = PSI.get_expression(container, ThermalReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -1549,8 +1586,8 @@ function _add_constraints_reservecoverage_withreserves!(
         T(),
         D,
         names,
-        time_steps,
-        meta=service_name,
+        time_steps;
+        meta = service_name,
     )
     for ic in initial_conditions
         device = PSI.get_component(ic)
@@ -1617,8 +1654,8 @@ function _add_constraints_reservecoverage_withreserves!(
         T(),
         D,
         names,
-        time_steps,
-        meta=service_name,
+        time_steps;
+        meta = service_name,
     )
     for ic in initial_conditions
         device = PSI.get_component(ic)
@@ -1627,7 +1664,8 @@ function _add_constraints_reservecoverage_withreserves!(
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
         efficiency = PSY.get_efficiency(storage).in
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         sustained_param = efficiency * num_periods * fraction_of_hour
         con[ci_name, 1] = JuMP.@constraint(
             container.JuMPmodel,
@@ -1686,8 +1724,8 @@ function _add_constraints_reservecoverage_withreserves_endofperiod!(
         T(),
         D,
         names,
-        time_steps,
-        meta=service_name,
+        time_steps;
+        meta = service_name,
     )
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -1750,13 +1788,14 @@ function _add_constraints_reservecoverage_withreserves_endofperiod!(
         T(),
         D,
         names,
-        time_steps,
-        meta=service_name,
+        time_steps;
+        meta = service_name,
     )
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
         storage = PSY.get_storage(device)
-        E_max = PSY.get_storage_level_limits(storage).max
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         efficiency = PSY.get_efficiency(storage).in
         sustained_param = efficiency * fraction_of_hour * num_periods
         con[ci_name, t] = JuMP.@constraint(
@@ -1805,8 +1844,10 @@ function _add_constraints_charging_reservelimit!(
     p_ch = PSI.get_variable(container, BatteryCharge(), D)
     reg_ch_up = PSI.get_expression(container, ChargeReserveUpExpression(), D)
     reg_ch_dn = PSI.get_expression(container, ChargeReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -1854,12 +1895,14 @@ function _add_constraints_discharging_reservelimit!(
     p_ds = PSI.get_variable(container, BatteryDischarge(), D)
     reg_ds_up = PSI.get_expression(container, DischargeReserveUpExpression(), D)
     reg_ds_dn = PSI.get_expression(container, DischargeReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
-        max_limit = PSY.get_input_active_power_limits(PSY.get_storage(device)).max
+        max_limit = PSY.get_output_active_power_limits(PSY.get_storage(device)).max
         con_ub[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
             p_ds[ci_name, t] + reg_ds_up[ci_name, t] <= max_limit * status_st[ci_name, t]
@@ -1902,8 +1945,10 @@ function _add_constraints_renewablereserve_limit!(
     p_re = PSI.get_variable(container, RenewablePower(), D)
     reg_re_up = PSI.get_expression(container, RenewableReserveUpExpression(), D)
     reg_re_dn = PSI.get_expression(container, RenewableReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
     param_container = PSI.get_parameter(container, P(), D)
     for device in devices
         ci_name = PSY.get_name(device)
@@ -1970,8 +2015,8 @@ function PSI.add_constraints!(
             T(),
             D,
             names,
-            time_steps,
-            meta=service_name,
+            time_steps;
+            meta = service_name,
         )
         for device in devices, t in time_steps
             ci_name = PSY.get_name(device)
@@ -2007,7 +2052,17 @@ function _add_constraints_reserve_assignment!(
         time_steps,
     )
 
-    tmap = PSY.get_ext(first(devices))["tmap"]
+    da_steps = axes(
+        PSI.get_variable(
+            container,
+            out_var,
+            typeof(first(services)),
+            PSY.get_name(first(services)),
+        ),
+    )[2]
+    rt_count = length(time_steps)
+    da_count = length(da_steps)
+    has_reserve_slack = _has_reserve_slack_variables(container, D)
 
     for service in services
         service_name = PSY.get_name(service)
@@ -2015,14 +2070,14 @@ function _add_constraints_reserve_assignment!(
         res_in = PSI.get_variable(container, in_var, typeof(service), service_name)
         res_var = PSI.get_variable(container, assignment_var, D)
         for device in devices, t in time_steps
-            horizon_DA = PSY.get_ext(device)["horizon_DA"]
             ci_name = PSY.get_name(device)
-            if horizon_DA == 24
+            da_t = _map_rt_to_da_index(t, rt_count, da_count)
+            if has_reserve_slack
                 slack_up = PSI.get_variable(container, SlackReserveUp(), D)
                 slack_dn = PSI.get_variable(container, SlackReserveDown(), D)
                 con[ci_name, service_name, t] = JuMP.@constraint(
                     PSI.get_jump_model(container),
-                    res_out[ci_name, tmap[t]] + res_in[ci_name, tmap[t]] -
+                    res_out[ci_name, da_t] + res_in[ci_name, da_t] -
                     res_var[ci_name, service_name, t] -
                     slack_up[ci_name, service_name, t] +
                     slack_dn[ci_name, service_name, t] == 0.0
@@ -2030,7 +2085,7 @@ function _add_constraints_reserve_assignment!(
             else
                 con[ci_name, service_name, t] = JuMP.@constraint(
                     PSI.get_jump_model(container),
-                    res_out[ci_name, tmap[t]] + res_in[ci_name, tmap[t]] -
+                    res_out[ci_name, da_t] + res_in[ci_name, da_t] -
                     res_var[ci_name, service_name, t] == 0.0
                 )
             end
@@ -2070,8 +2125,8 @@ function PSI.add_constraints!(
             T(),
             D,
             names,
-            time_steps,
-            meta=service_name,
+            time_steps;
+            meta = service_name,
         )
         for device in devices, t in time_steps
             ci_name = PSY.get_name(device)
@@ -2111,8 +2166,8 @@ function PSI.add_constraints!(
             T(),
             D,
             names,
-            time_steps,
-            meta=service_name,
+            time_steps;
+            meta = service_name,
         )
         for device in devices
             ci_name = PSY.get_name(device)
@@ -2184,8 +2239,10 @@ function add_constraints_dayaheadlimit_out_withreserves!(
     bid_out = PSI.get_variable(container, EnergyDABidOut(), D)
     res_out_up = PSI.get_expression(container, TotalReserveOutUpExpression(), D)
     res_out_down = PSI.get_expression(container, TotalReserveOutDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -2218,8 +2275,10 @@ function add_constraints_dayaheadlimit_in_withreserves!(
     bid_in = PSI.get_variable(container, EnergyDABidIn(), D)
     res_in_up = PSI.get_expression(container, TotalReserveInUpExpression(), D)
     res_in_down = PSI.get_expression(container, TotalReserveInDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -2252,21 +2311,25 @@ function add_constraints_realtimelimit_out_withreserves!(
     bid_out = PSI.get_variable(container, EnergyRTBidOut(), D)
     res_out_up = PSI.get_expression(container, TotalReserveOutUpExpression(), D)
     res_out_down = PSI.get_expression(container, TotalReserveOutDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
+    da_count = size(res_out_up, 2)
+    rt_count = length(time_steps)
 
     for device in devices, t in time_steps
-        tmap = PSY.get_ext(device)["tmap"]
         ci_name = PSY.get_name(device)
+        da_t = _map_rt_to_da_index(t, rt_count, da_count)
         max_limit = PSI.get_variable_upper_bound(PSI.ActivePowerOutVariable(), device, W())
         @assert max_limit !== nothing ci_name
         con_ub[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            bid_out[ci_name, t] + res_out_up[ci_name, tmap[t]] <= max_limit
+            bid_out[ci_name, t] + res_out_up[ci_name, da_t] <= max_limit
         )
         con_lb[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            bid_out[ci_name, t] - res_out_down[ci_name, tmap[t]] >= 0.0
+            bid_out[ci_name, t] - res_out_down[ci_name, da_t] >= 0.0
         )
     end
     return
@@ -2287,21 +2350,25 @@ function add_constraints_realtimelimit_in_withreserves!(
     bid_in = PSI.get_variable(container, EnergyRTBidIn(), D)
     res_in_up = PSI.get_expression(container, TotalReserveInUpExpression(), D)
     res_in_down = PSI.get_expression(container, TotalReserveInDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
+    da_count = size(res_in_up, 2)
+    rt_count = length(time_steps)
 
     for device in devices, t in time_steps
-        tmap = PSY.get_ext(device)["tmap"]
         ci_name = PSY.get_name(device)
+        da_t = _map_rt_to_da_index(t, rt_count, da_count)
         max_limit = PSI.get_variable_upper_bound(PSI.ActivePowerInVariable(), device, W())
         @assert max_limit !== nothing ci_name
         con_ub[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            bid_in[ci_name, t] + res_in_down[ci_name, tmap[t]] <= max_limit
+            bid_in[ci_name, t] + res_in_down[ci_name, da_t] <= max_limit
         )
         con_lb[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            bid_in[ci_name, t] - res_in_up[ci_name, tmap[t]] >= 0.0
+            bid_in[ci_name, t] - res_in_up[ci_name, da_t] >= 0.0
         )
     end
     return
@@ -2323,20 +2390,24 @@ function _add_thermallimit_withreserves!(
     p_th = PSI.get_variable(container, ThermalPower(), D)
     reg_th_up = PSI.get_expression(container, ThermalReserveUpExpression(), D)
     reg_th_dn = PSI.get_expression(container, ThermalReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
+    da_count = size(varon, 2)
+    rt_count = length(time_steps)
 
     for device in devices, t in time_steps
-        tmap = PSY.get_ext(device)["tmap"]
         ci_name = PSY.get_name(device)
+        da_t = _map_rt_to_da_index(t, rt_count, da_count)
         min_limit, max_limit = PSY.get_active_power_limits(PSY.get_thermal_unit(device))
         con_ub[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            p_th[ci_name, t] + reg_th_up[ci_name, t] <= max_limit * varon[ci_name, tmap[t]]
+            p_th[ci_name, t] + reg_th_up[ci_name, t] <= max_limit * varon[ci_name, da_t]
         )
         con_lb[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            p_th[ci_name, t] - reg_th_dn[ci_name, t] >= min_limit * varon[ci_name, tmap[t]]
+            p_th[ci_name, t] - reg_th_dn[ci_name, t] >= min_limit * varon[ci_name, da_t]
         )
     end
 end
@@ -2355,15 +2426,18 @@ function _add_constraints_thermalon_variableon!(
     names = [PSY.get_name(d) for d in devices]
     varon = PSI.get_variable(container, PSI.OnVariable(), D)
     p_th = PSI.get_variable(container, ThermalPower(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    da_count = size(varon, 2)
+    rt_count = length(time_steps)
 
     for device in devices, t in time_steps
-        tmap = PSY.get_ext(device)["tmap"]
         ci_name = PSY.get_name(device)
+        da_t = _map_rt_to_da_index(t, rt_count, da_count)
         max_limit = PSY.get_active_power_limits(PSY.get_thermal_unit(device)).max
         con_ub[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            p_th[ci_name, t] <= max_limit * varon[ci_name, tmap[t]]
+            p_th[ci_name, t] <= max_limit * varon[ci_name, da_t]
         )
     end
     return
@@ -2383,15 +2457,18 @@ function _add_constraints_thermalon_variableoff!(
     names = [PSY.get_name(d) for d in devices]
     varon = PSI.get_variable(container, PSI.OnVariable(), D)
     p_th = PSI.get_variable(container, ThermalPower(), D)
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
+    da_count = size(varon, 2)
+    rt_count = length(time_steps)
 
     for device in devices, t in time_steps
-        tmap = PSY.get_ext(device)["tmap"]
         ci_name = PSY.get_name(device)
+        da_t = _map_rt_to_da_index(t, rt_count, da_count)
         min_limit = PSY.get_active_power_limits(PSY.get_thermal_unit(device)).min
         con_lb[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            min_limit * varon[ci_name, tmap[t]] <= p_th[ci_name, t]
+            min_limit * varon[ci_name, da_t] <= p_th[ci_name, t]
         )
     end
     return
@@ -2495,11 +2572,12 @@ function _add_constraints_reservebalance!(
             T(),
             D,
             names,
-            time_steps,
-            meta=service_name,
+            time_steps;
+            meta = service_name,
         )
+        da_count = size(res_out, 2)
+        rt_count = length(time_steps)
         for device in devices
-            tmap = PSY.get_ext(device)["tmap"]
             ci_name = PSY.get_name(device)
             vars_pos = Set{JUMP_SET_TYPE}()
 
@@ -2538,7 +2616,8 @@ function _add_constraints_reservebalance!(
                 push!(vars_pos, res_ch[ci_name, :])
             end
             for t in time_steps
-                total_reserve = -res_out[ci_name, tmap[t]] - res_in[ci_name, tmap[t]]
+                da_t = _map_rt_to_da_index(t, rt_count, da_count)
+                total_reserve = -res_out[ci_name, da_t] - res_in[ci_name, da_t]
                 for vp in vars_pos
                     JuMP.add_to_expression!(total_reserve, vp[t])
                 end
@@ -2567,14 +2646,16 @@ function _add_constraints_out_marketconvergence!(
     res_out_up = PSI.get_expression(container, ServedReserveOutUpExpression(), D)
     res_out_down = PSI.get_expression(container, ServedReserveOutDownExpression(), D)
     con = PSI.add_constraints_container!(container, T(), D, names, time_steps)
+    da_count = size(res_out_up, 2)
+    rt_count = length(time_steps)
 
     for device in devices, t in time_steps
-        tmap = PSY.get_ext(device)["tmap"]
         ci_name = PSY.get_name(device)
+        da_t = _map_rt_to_da_index(t, rt_count, da_count)
         con[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            bid_out[ci_name, t] + res_out_up[ci_name, tmap[t]] -
-            res_out_down[ci_name, tmap[t]] == p_out[ci_name, t]
+            bid_out[ci_name, t] + res_out_up[ci_name, da_t] -
+            res_out_down[ci_name, da_t] == p_out[ci_name, t]
         )
     end
     return
@@ -2596,14 +2677,16 @@ function _add_constraints_in_marketconvergence!(
     res_in_up = PSI.get_expression(container, ServedReserveInUpExpression(), D)
     res_in_down = PSI.get_expression(container, ServedReserveInDownExpression(), D)
     con = PSI.add_constraints_container!(container, T(), D, names, time_steps)
+    da_count = size(res_in_up, 2)
+    rt_count = length(time_steps)
 
     for device in devices, t in time_steps
-        tmap = PSY.get_ext(device)["tmap"]
         ci_name = PSY.get_name(device)
+        da_t = _map_rt_to_da_index(t, rt_count, da_count)
         con[ci_name, t] = JuMP.@constraint(
             PSI.get_jump_model(container),
-            bid_in[ci_name, t] + res_in_down[ci_name, tmap[t]] -
-            res_in_up[ci_name, tmap[t]] == p_in[ci_name, t]
+            bid_in[ci_name, t] + res_in_down[ci_name, da_t] -
+            res_in_up[ci_name, da_t] == p_in[ci_name, t]
         )
     end
     return
@@ -2634,13 +2717,8 @@ function add_constraints!(
     jm = PSI.get_jump_model(container)
     for dev in devices
         n = PSY.get_name(dev)
-        t_gen = dev.thermal_unit
-        three_cost = PSY.get_operation_cost(t_gen)
-        first_part = three_cost.variable[1]
-        second_part = three_cost.variable[2]
-        slope = (second_part[1] - first_part[1]) / (second_part[2] - first_part[2]) # $/MWh
-        C_th_var = slope * 100.0 # Multiply by 100 to transform to $/pu
         for t in time_steps
+            C_th_var = get_thermal_marginal_cost_per_system_unit(container, dev, t)
             # Written to match latex model
             con[n, t] = JuMP.@constraint(
                 jm,
@@ -2706,7 +2784,9 @@ function add_constraints!(
     for dev in devices
         n = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        VOM = storage.operation_cost.variable.cost
+        VOM = PSY.get_proportional_term(
+            PSY.get_vom_cost(PSY.get_charge_variable_cost(PSY.get_operation_cost(storage))),
+        )
         η_ch = storage.efficiency.in * Δt_RT
         for t in time_steps
             con[n, t] = JuMP.@constraint(
@@ -2763,8 +2843,8 @@ function add_constraints!(
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
     W <: MerchantModelWithReserves,
 } where {D <: PSY.HybridSystem}
-    # Temp Fix
-    Δt_RT = 1 / 12
+    resolution = PSI.get_resolution(container)
+    Δt_RT = Dates.value(Dates.Minute(resolution)) / PSI.MINUTES_IN_HOUR
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     con = PSI.add_constraints_container!(container, T(), D, names, time_steps)
@@ -2780,7 +2860,11 @@ function add_constraints!(
     for dev in devices
         n = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        VOM = storage.operation_cost.variable.cost
+        VOM = PSY.get_proportional_term(
+            PSY.get_vom_cost(
+                PSY.get_discharge_variable_cost(PSY.get_operation_cost(storage)),
+            ),
+        )
         inv_η_ds = Δt_RT / storage.efficiency.out
         # Written to match latex model
         for t in time_steps
@@ -2811,14 +2895,15 @@ function add_constraints!(
     primal_var = PSI.get_variable(container, PSI.EnergyVariable(), D)
     k_variable = PSI.get_variable(container, ComplementarySlackVarEnergyLimitUb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for dev in devices
         n = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        e_max_ds = PSY.get_storage_level_limits(storage).max
+        e_max_ds =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         for t in time_steps
             assignment_constraint[n, t] =
                 JuMP.@constraint(jm, k_variable[n, t] == primal_var[n, t] - e_max_ds)
@@ -2845,7 +2930,7 @@ function add_constraints!(
     dual_var = PSI.get_variable(container, νStLb(), D)
     primal_var = PSI.get_variable(container, PSI.EnergyVariable(), D)
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for n in names, t in time_steps
         #assignment_constraint[n, t] =
@@ -2872,9 +2957,9 @@ function add_constraints!(
     variable = PSI.get_variable(container, ComplementarySlackVarEnergyAssetBalanceUb(), D)
     dual_var = PSI.get_variable(container, λUb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for n in names, t in time_steps
         assignment_constraint[n, t] =
@@ -2900,9 +2985,9 @@ function add_constraints!(
     variable = PSI.get_variable(container, ComplementarySlackVarEnergyAssetBalanceLb(), D)
     dual_var = PSI.get_variable(container, λLb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for n in names, t in time_steps
         assignment_constraint[n, t] =
@@ -2930,19 +3015,21 @@ function add_constraints!(
     varon = PSI.get_variable(container, PSI.OnVariable(), D)
     k_variable = PSI.get_variable(container, ComplementarySlackVarThermalOnVariableUb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
+    da_count = size(varon, 2)
+    rt_count = length(time_steps)
     for dev in devices
-        tmap = PSY.get_ext(dev)["tmap"]
         n = PSY.get_name(dev)
         thermal = PSY.get_thermal_unit(dev)
         p_max_th = PSY.get_active_power_limits(thermal).max
         for t in time_steps
+            da_t = _map_rt_to_da_index(t, rt_count, da_count)
             assignment_constraint[n, t] = JuMP.@constraint(
                 jm,
-                k_variable[n, t] == primal_var[n, t] - varon[n, tmap[t]] * p_max_th
+                k_variable[n, t] == primal_var[n, t] - varon[n, da_t] * p_max_th
             )
             sos_constraint[n, t] =
                 JuMP.@constraint(jm, [k_variable[n, t], dual_var[n, t]] in JuMP.SOS1())
@@ -2968,19 +3055,21 @@ function add_constraints!(
     varon = PSI.get_variable(container, PSI.OnVariable(), D)
     k_variable = PSI.get_variable(container, ComplementarySlackVarThermalOnVariableLb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
+    da_count = size(varon, 2)
+    rt_count = length(time_steps)
     for dev in devices
-        tmap = PSY.get_ext(dev)["tmap"]
         n = PSY.get_name(dev)
         thermal = PSY.get_thermal_unit(dev)
         p_min_th = PSY.get_active_power_limits(thermal).min
         for t in time_steps
+            da_t = _map_rt_to_da_index(t, rt_count, da_count)
             assignment_constraint[n, t] = JuMP.@constraint(
                 jm,
-                k_variable[n, t] == -primal_var[n, t] + varon[n, tmap[t]] * p_min_th
+                k_variable[n, t] == -primal_var[n, t] + varon[n, da_t] * p_min_th
             )
             sos_constraint[n, t] =
                 JuMP.@constraint(jm, [k_variable[n, t], dual_var[n, t]] in JuMP.SOS1())
@@ -3009,9 +3098,9 @@ function add_constraints!(
     primal_var = PSI.get_variable(container, RenewablePower(), D)
     re_param_container = PSI.get_parameter(container, RenewablePowerTimeSeries(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for d in devices
         name = PSY.get_name(d)
@@ -3047,7 +3136,7 @@ function add_constraints!(
     dual_var = PSI.get_variable(container, μReLb(), D)
     primal_var = PSI.get_variable(container, RenewablePower(), D)
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for n in names, t in time_steps
         #assignment_constraint[n, t] =
@@ -3069,15 +3158,15 @@ function add_constraints!(
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
-    dual_var = PSI.get_variable(container, μDsLb(), D)
+    dual_var = PSI.get_variable(container, μDsUb(), D)
     primal_var = PSI.get_variable(container, BatteryDischarge(), D)
     binary = PSI.get_variable(container, BatteryStatus(), D)
     k_variable =
         PSI.get_variable(container, ComplementarySlackVarBatteryStatusDischargeOnUb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for dev in devices
         n = PSY.get_name(dev)
@@ -3111,7 +3200,7 @@ function add_constraints!(
     dual_var = PSI.get_variable(container, μDsLb(), D)
     primal_var = PSI.get_variable(container, BatteryDischarge(), D)
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for n in names, t in time_steps
         #assignment_constraint[n, t] =
@@ -3133,15 +3222,15 @@ function add_constraints!(
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
-    dual_var = PSI.get_variable(container, μDsLb(), D)
+    dual_var = PSI.get_variable(container, μChUb(), D)
     primal_var = PSI.get_variable(container, BatteryCharge(), D)
     binary = PSI.get_variable(container, BatteryStatus(), D)
     k_variable =
         PSI.get_variable(container, ComplementarySlackVarBatteryStatusChargeOnUb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for dev in devices
         n = PSY.get_name(dev)
@@ -3150,7 +3239,7 @@ function add_constraints!(
         for t in time_steps
             assignment_constraint[n, t] = JuMP.@constraint(
                 jm,
-                k_variable[n, t] == primal_var[n, t] - (1.0 - p_max_ch) * binary[n, t]
+                k_variable[n, t] == primal_var[n, t] - (1.0 - binary[n, t]) * p_max_ch
             )
             sos_constraint[n, t] =
                 JuMP.@constraint(jm, [k_variable[n, t], dual_var[n, t]] in JuMP.SOS1())
@@ -3175,7 +3264,7 @@ function add_constraints!(
     dual_var = PSI.get_variable(container, μChLb(), D)
     primal_var = PSI.get_variable(container, BatteryCharge(), D)
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     jm = PSI.get_jump_model(container)
     for n in names, t in time_steps
         #assignment_constraint[n, t] =
@@ -3205,9 +3294,9 @@ function add_constraints!(
     discharge_var = PSI.get_variable(container, BatteryDischarge(), D)
     dual_var = PSI.get_variable(container, γStBalUb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     initial_conditions = PSI.get_initial_condition(container, PSI.InitialEnergyLevel(), D)
     jm = PSI.get_jump_model(container)
     for ic in initial_conditions
@@ -3230,9 +3319,9 @@ function add_constraints!(
         )
 
         for t in time_steps[2:end]
-            assignment_constraint[ci_name, 1] = JuMP.@constraint(
+            assignment_constraint[ci_name, t] = JuMP.@constraint(
                 jm,
-                k_variable[ci_name, 1] ==
+                k_variable[ci_name, t] ==
                 energy_var[ci_name, t - 1] +
                 fraction_of_hour * (
                     charge_var[ci_name, t] * efficiency.in -
@@ -3267,9 +3356,9 @@ function add_constraints!(
     discharge_var = PSI.get_variable(container, BatteryDischarge(), D)
     dual_var = PSI.get_variable(container, γStBalLb(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="eq")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "eq")
     sos_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "sos")
     initial_conditions = PSI.get_initial_condition(container, PSI.InitialEnergyLevel(), D)
     jm = PSI.get_jump_model(container)
     for ic in initial_conditions
@@ -3292,9 +3381,9 @@ function add_constraints!(
         )
 
         for t in time_steps[2:end]
-            assignment_constraint[ci_name, 1] = JuMP.@constraint(
+            assignment_constraint[ci_name, t] = JuMP.@constraint(
                 jm,
-                k_variable[ci_name, 1] ==
+                k_variable[ci_name, t] ==
                 energy_var[ci_name, t - 1] +
                 fraction_of_hour * (
                     charge_var[ci_name, t] * efficiency.in -
@@ -3312,7 +3401,7 @@ end
 
 function add_constraints!(
     container::PSI.OptimizationContainer,
-    T::Type{<:ComplentarySlacknessCyclingCharge},
+    T::Type{<:ComplementarySlacknessCyclingCharge},
     devices::U,
     ::W,
 ) where {
@@ -3325,8 +3414,8 @@ function add_constraints!(
     charge_var = PSI.get_variable(container, BatteryCharge(), D)
     dual_var = PSI.get_variable(container, κStCh(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, meta="eq")
-    sos_constraint = PSI.add_constraints_container!(container, T(), D, names, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names; meta = "eq")
+    sos_constraint = PSI.add_constraints_container!(container, T(), D, names; meta = "sos")
     jm = PSI.get_jump_model(container)
     resolution = PSI.get_resolution(container)
     Δt_RT = Dates.value(Dates.Minute(resolution)) / PSI.MINUTES_IN_HOUR
@@ -3334,7 +3423,8 @@ function add_constraints!(
     for dev in devices
         name = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        _, E_max = PSY.get_storage_level_limits(storage)
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
         η_ch = storage.efficiency.in * Δt_RT
         assignment_constraint[name] = JuMP.@constraint(
             jm,
@@ -3349,7 +3439,7 @@ end
 
 function add_constraints!(
     container::PSI.OptimizationContainer,
-    T::Type{<:ComplentarySlacknessCyclingDischarge},
+    T::Type{<:ComplementarySlacknessCyclingDischarge},
     devices::U,
     ::W,
 ) where {
@@ -3359,11 +3449,11 @@ function add_constraints!(
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     k_variable = PSI.get_variable(container, ComplementarySlackVarCyclingDischarge(), D)
-    charge_var = PSI.get_variable(container, BatteryDischarge(), D)
+    discharge_var = PSI.get_variable(container, BatteryDischarge(), D)
     dual_var = PSI.get_variable(container, κStDs(), D)
     assignment_constraint =
-        PSI.add_constraints_container!(container, T(), D, names, meta="eq")
-    sos_constraint = PSI.add_constraints_container!(container, T(), D, names, meta="sos")
+        PSI.add_constraints_container!(container, T(), D, names; meta = "eq")
+    sos_constraint = PSI.add_constraints_container!(container, T(), D, names; meta = "sos")
     jm = PSI.get_jump_model(container)
     resolution = PSI.get_resolution(container)
     Δt_RT = Dates.value(Dates.Minute(resolution)) / PSI.MINUTES_IN_HOUR
@@ -3371,12 +3461,13 @@ function add_constraints!(
     for dev in devices
         name = PSY.get_name(dev)
         storage = PSY.get_storage(dev)
-        _, E_max = PSY.get_storage_level_limits(storage)
-        η_ch = storage.efficiency.in * Δt_RT
+        E_max =
+            PSY.get_storage_level_limits(storage).max * PSY.get_storage_capacity(storage)
+        inv_η_ds = Δt_RT / storage.efficiency.out
         assignment_constraint[name] = JuMP.@constraint(
             jm,
             k_variable[name] ==
-            sum(charge_var[name, t] * η_ch for t in time_steps) - Cycles * E_max
+            sum(discharge_var[name, t] * inv_η_ds for t in time_steps) - Cycles * E_max
         )
         sos_constraint[name] =
             JuMP.@constraint(jm, [k_variable[name], dual_var[name]] in JuMP.SOS1())
@@ -3424,7 +3515,7 @@ function PSI._add_parameters!(
         key,
         names,
         time_steps;
-        meta=PSI.get_service_name(model),
+        meta = PSI.get_service_name(model),
     )
     jump_model = PSI.get_jump_model(container)
     for name in names, t in time_steps

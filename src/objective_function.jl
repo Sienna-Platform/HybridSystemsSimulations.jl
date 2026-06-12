@@ -5,7 +5,7 @@ PSI.objective_function_multiplier(
 ) = PSI.OBJECTIVE_FUNCTION_POSITIVE
 
 PSI.objective_function_multiplier(
-    ::Union{BatteryEnergySurplusVariable, BatteryEnergySurplusVariable},
+    ::Union{BatteryEnergySurplusVariable, BatteryEnergyShortageVariable},
     ::AbstractHybridFormulation,
 ) = PSI.OBJECTIVE_FUNCTION_POSITIVE
 
@@ -85,6 +85,11 @@ end
 # end
 # HSA 11-6-2024 ===
 
+_battery_variable_cost_curve(cost::PSY.OperationalCost, ::BatteryCharge) =
+    PSY.get_charge_variable_cost(cost)
+_battery_variable_cost_curve(cost::PSY.OperationalCost, ::BatteryDischarge) =
+    PSY.get_discharge_variable_cost(cost)
+
 function PSI.add_proportional_cost!(
     container::PSI.OptimizationContainer,
     ::T,
@@ -96,13 +101,30 @@ function PSI.add_proportional_cost!(
     W <: AbstractHybridFormulation,
 } where {D <: PSY.HybridSystem}
     multiplier = PSI.objective_function_multiplier(T(), W())
+    resolution = PSI.get_resolution(container)
+    dt = Dates.value(Dates.Minute(resolution)) / PSI.MINUTES_IN_HOUR
+    base_power = PSI.get_base_power(container)
     for d in devices
-        op_cost_data = PSY.get_operation_cost(PSY.get_storage(d))
+        storage = PSY.get_storage(d)
+        op_cost_data = PSY.get_operation_cost(storage)
         isnothing(op_cost_data) && continue
         cost_term = PSI.proportional_cost(op_cost_data, T(), d, W())
         iszero(cost_term) && continue
+        cost_per_system_unit = PSI.get_proportional_cost_per_system_unit(
+            cost_term,
+            PSY.get_power_units(_battery_variable_cost_curve(op_cost_data, T())),
+            base_power,
+            PSY.get_base_power(storage),
+        )
         for t in PSI.get_time_steps(container)
-            PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            exp = PSI._add_proportional_term!(
+                container,
+                T(),
+                d,
+                cost_per_system_unit * dt * multiplier,
+                t,
+            )
+            PSI.add_to_expression!(container, PSI.FixedCostExpression, exp, d, t)
         end
     end
     return
@@ -153,8 +175,8 @@ function PSI.add_proportional_cost!(
         # println("===============================================")
         iszero(cost_term) && continue
         for t in PSI.get_time_steps(container)
-            PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
-            #PSI._add_proportional_term!(container, T(), d, proportional_term * multiplier, t)
+            exp = PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            PSI.add_to_expression!(container, PSI.FixedCostExpression, exp, d, t)
         end
     end
     return
@@ -206,12 +228,15 @@ function PSI.add_proportional_cost!(
 } where {D <: PSY.HybridSystem}
     multiplier = PSI.objective_function_multiplier(T(), W())
     for d in devices
-        op_cost_data = PSY.get_operation_cost(PSY.get_storage(d))
+        thermal_component = PSY.get_thermal_unit(d)
+        isnothing(thermal_component) && continue
+        op_cost_data = PSY.get_operation_cost(thermal_component)
         isnothing(op_cost_data) && continue
         cost_term = PSI.proportional_cost(op_cost_data, T(), d, W())
         iszero(cost_term) && continue
         for t in PSI.get_time_steps(container)
-            PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            exp = PSI._add_proportional_term!(container, T(), d, cost_term * multiplier, t)
+            PSI.add_to_expression!(container, PSI.FixedCostExpression, exp, d, t)
         end
     end
     return
@@ -244,6 +269,126 @@ function PSI.get_fuel_cost_value(
 )
     thermal_component = PSY.get_thermal_unit(component)
     return PSI.get_fuel_cost_value(container, thermal_component, t, is_time_variant)
+end
+
+_extract_first_numeric_value(value::Number) = Float64(value)
+_extract_first_numeric_value(value::AbstractArray) = Float64(first(value))
+_extract_first_numeric_value(value) =
+    if hasproperty(value, :values)
+        Float64(first(getproperty(value, :values)))
+    else
+        throw(
+            ArgumentError(
+                "Unable to extract scalar fuel cost from $(typeof(value)); expected Number or array-like values.",
+            ),
+        )
+    end
+
+_time_step_datetime(container::PSI.OptimizationContainer, t::Int) =
+    PSI.get_initial_time(container) + (t - 1) * PSI.get_resolution(container)
+
+function _first_piecewise_slope(variable_cost)
+    value_curve = PSY.get_value_curve(variable_cost)
+    cost_component = PSY.get_function_data(value_curve)
+    x_coords = PSY.get_x_coords(cost_component)
+    y_coords = PSY.get_y_coords(cost_component)
+    if length(x_coords) == length(y_coords) + 1
+        # Piecewise-incremental format stores segment slopes directly in y-coordinates.
+        return first(y_coords)
+    elseif length(x_coords) == length(y_coords) && length(x_coords) >= 2
+        return (y_coords[2] - y_coords[1]) / (x_coords[2] - x_coords[1])
+    end
+    throw(
+        ArgumentError(
+            "Unsupported piecewise curve data shape for $(typeof(cost_component)): " *
+            "length(x_coords)=$(length(x_coords)), length(y_coords)=$(length(y_coords)).",
+        ),
+    )
+end
+
+function get_thermal_fixed_cost_per_hour(component::PSY.HybridSystem)
+    thermal_component = PSY.get_thermal_unit(component)
+    isnothing(thermal_component) && return 0.0
+    return PSY.get_fixed(PSY.get_operation_cost(thermal_component))
+end
+
+function get_thermal_marginal_cost_per_system_unit(
+    container::PSI.OptimizationContainer,
+    component::PSY.HybridSystem,
+    t::Int,
+)
+    thermal_component = PSY.get_thermal_unit(component)
+    isnothing(thermal_component) && return 0.0
+    op_cost = PSY.get_operation_cost(thermal_component)
+    variable_cost = PSY.get_variable(op_cost)
+    base_power = PSI.get_base_power(container)
+    device_base_power = PSY.get_base_power(thermal_component)
+
+    if variable_cost isa PSY.CostCurve{PSY.LinearCurve}
+        value_curve = PSY.get_value_curve(variable_cost)
+        cost_component = PSY.get_function_data(value_curve)
+        proportional_term = PSY.get_proportional_term(cost_component)
+        return PSI.get_proportional_cost_per_system_unit(
+            proportional_term,
+            PSY.get_power_units(variable_cost),
+            base_power,
+            device_base_power,
+        )
+    elseif variable_cost isa Union{
+        PSY.CostCurve{PSY.PiecewiseIncrementalCurve},
+        PSY.CostCurve{PSY.PiecewisePointCurve},
+    }
+        slope = _first_piecewise_slope(variable_cost)
+        return PSI.get_proportional_cost_per_system_unit(
+            slope,
+            PSY.get_power_units(variable_cost),
+            base_power,
+            device_base_power,
+        )
+    elseif variable_cost isa PSY.FuelCurve{PSY.LinearCurve}
+        value_curve = PSY.get_value_curve(variable_cost)
+        cost_component = PSY.get_function_data(value_curve)
+        proportional_term = PSY.get_proportional_term(cost_component)
+        fuel_curve_per_unit = PSI.get_proportional_cost_per_system_unit(
+            proportional_term,
+            PSY.get_power_units(variable_cost),
+            base_power,
+            device_base_power,
+        )
+        fuel_cost_data = PSY.get_fuel_cost(variable_cost)
+        fuel_cost_value = if PSI.is_time_variant(fuel_cost_data)
+            timestamp = _time_step_datetime(container, t)
+            PSY.get_fuel_cost(thermal_component; start_time = timestamp, len = 1)
+        else
+            PSY.get_fuel_cost(thermal_component)
+        end
+        return fuel_curve_per_unit * _extract_first_numeric_value(fuel_cost_value)
+    elseif variable_cost isa Union{
+        PSY.FuelCurve{PSY.PiecewiseIncrementalCurve},
+        PSY.FuelCurve{PSY.PiecewisePointCurve},
+    }
+        slope = _first_piecewise_slope(variable_cost)
+        fuel_curve_per_unit = PSI.get_proportional_cost_per_system_unit(
+            slope,
+            PSY.get_power_units(variable_cost),
+            base_power,
+            device_base_power,
+        )
+        fuel_cost_data = PSY.get_fuel_cost(variable_cost)
+        fuel_cost_value = if PSI.is_time_variant(fuel_cost_data)
+            timestamp = _time_step_datetime(container, t)
+            PSY.get_fuel_cost(thermal_component; start_time = timestamp, len = 1)
+        else
+            PSY.get_fuel_cost(thermal_component)
+        end
+        return fuel_curve_per_unit * _extract_first_numeric_value(fuel_cost_value)
+    end
+
+    throw(
+        ArgumentError(
+            "Unsupported thermal variable cost type $(typeof(variable_cost)) for merchant HybridSystem models. Use linear CostCurve or linear FuelCurve.",
+        ),
+    )
 end
 
 ############### Renewable costs, HybridSystem #######################
