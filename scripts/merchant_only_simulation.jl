@@ -48,8 +48,8 @@ solver = JuMP.optimizer_with_attributes(
 ######## Build System #########
 ###############################
 
-horizon_merchant_rt = 24 * 12         # 24 hours at 5-min resolution
-horizon_merchant_da = 24              # 24 hours at hourly resolution
+horizon_merchant_rt = 24 * 12         # 288 5-min intervals = 24 hours
+horizon_merchant_da = 24              # 24 hourly intervals = 24 hours
 interval = Hour(24)
 
 sys_rts_merchant = build_system(
