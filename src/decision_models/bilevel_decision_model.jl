@@ -7,39 +7,50 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
     model = container.JuMPmodel
     sys = PSI.get_system(decision_model)
     T = PSY.HybridSystem
-    # Resolution
-    RT_resolution = PSY.get_time_series_resolution(sys)
+    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
+    if isempty(hybrids)
+        error(
+            "MerchantHybridBilevelCase requires at least one HybridSystem in the " *
+            "System. Add a PSY.HybridSystem to the system or use a different decision model.",
+        )
+    end
     Δt_DA = 1.0
-    Δt_RT = Dates.value(Dates.Minute(RT_resolution)) / PSI.MINUTES_IN_HOUR
     # Initialize Container
-    PSI.init_optimization_container!(container, PSI.CopperPlatePowerModel, sys)
+    PSI.init_optimization_container!(
+        container,
+        PSI.get_network_model(PSI.get_template(decision_model)),
+        sys,
+    )
     PSI.init_model_store_params!(decision_model)
+    set_time_series_keys!(container, decision_model)
+    # Resolution negotiated into settings by PSI.validate_time_series!
+    Δt_RT =
+        Dates.value(Dates.Minute(PSI.get_resolution(container))) / PSI.MINUTES_IN_HOUR
 
-    # Create Multiple Time Horizons based on ext horizons
-    ext = PSY.get_ext(sys)
-    dates_da = ext["λ_da_df"][!, "DateTime"]
-    dates_rt = ext["λ_rt_df"][!, "DateTime"]
-    len_DA = get(ext, "horizon_DA", length(dates_da))
-    len_RT = get(ext, "horizon_RT", length(dates_rt))
-    T_da = 1:len_DA
-    T_rt = 1:len_RT
-    container.time_steps = T_rt
+    rt_key = get_real_time_time_series_key(decision_model)
+    hybrid_ref = first(hybrids)
+    rt_metadata = first_matching_hybrid_scalar_metadata(
+        hybrid_ref,
+        hybrid_energy_price_time_series_name(rt_key),
+    )
+    len_RT_meta = time_series_metadata_horizon_steps(rt_metadata)
+    T_da = merchant_da_time_step_range(container, hybrid_ref)
+
+    T_rt = PSI.get_time_steps(container)
+    len_RT = length(T_rt)
+    len_RT_meta < len_RT && error(
+        "Hybrid RT energy price series ($(len_RT_meta) pts) is shorter than model horizon ($(len_RT) steps).",
+    )
     time_steps = T_rt
 
     # Map for DA to RT
-    tmap = [div(k - 1, Int(length(T_rt) / length(T_da))) + 1 for k in T_rt]
+    tmap = merchant_rt_to_da_tmap(len_RT, length(T_da))
 
     ###############################
     ######## Parameters ###########
     ###############################
 
-    hybrids = collect(PSY.get_components(PSY.HybridSystem, sys))
     h_names = PSY.get_name.(hybrids)
-    for h in hybrids
-        PSY.get_ext(h)["T_da"] = T_da
-        PSY.get_ext(h)["tmap"] = tmap
-    end
-
     services = Set()
     for h in hybrids
         union!(services, PSY.get_services(h))
@@ -246,7 +257,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
             container,
             RenewablePowerTimeSeries(),
             _hybrids_with_renewable,
-            "RenewableDispatch__max_active_power_da",
+            "RenewableDispatch__max_active_power",
         )
         PSI.add_variables!(
             container,
@@ -567,10 +578,7 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
             PSI.add_to_objective_variant_expression!(container, service_in_cost)
         end
         if !isnothing(dev.thermal_unit)
-            # Workaround to add ThermalCost with a Linear Cost Since the model doesn't include PWL cost
-            t_gen = dev.thermal_unit
-            three_cost = PSY.get_operation_cost(t_gen)
-            C_th_fix = three_cost.fixed # $/h
+            C_th_fix = get_thermal_fixed_cost_per_hour(dev)
             lin_cost_on_th = Δt_DA * C_th_fix * on_th[name, t]
             PSI.add_to_objective_invariant_expression!(container, lin_cost_on_th)
         end
@@ -949,8 +957,8 @@ function PSI.build_impl!(decision_model::PSI.DecisionModel{MerchantHybridBilevel
             ComplementarySlacknessBatteryBalanceLb,
             ComplementarySlacknessEnergyLimitUb,
             ComplementarySlacknessEnergyLimitLb,
-            ComplentarySlacknessCyclingCharge,
-            ComplentarySlacknessCyclingDischarge,
+            ComplementarySlacknessCyclingCharge,
+            ComplementarySlacknessCyclingDischarge,
         ]
             add_constraints!(container, c, hybrids, MerchantModelWithReserves())
         end

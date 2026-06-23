@@ -193,10 +193,11 @@ function PSI.update_decision_state!(
 ) where {T <: Union{EnergyDABidOut, EnergyDABidIn}}
     @debug "updating decision state $simulation_time"
     state_data = PSI.get_decision_state_data(state, key)
-    model_resolution = PSI.get_resolution(model_params) # var res: 1 hour
-    model_resolution = Dates.Hour(1) #TODO: Find a ext hack
-    state_resolution = PSI.get_data_resolution(state_data) # 5 min
-    resolution_ratio = model_resolution ÷ state_resolution
+    state_resolution = PSI.get_data_resolution(state_data)
+    # DA bid variables are indexed by hourly DA slots (see merchant_da_time_step_range),
+    # not by the model's RT resolution: each stored value spans one hour of state rows.
+    resolution_ratio =
+        Dates.Millisecond(Dates.Hour(1)) ÷ Dates.Millisecond(state_resolution)
     state_timestamps = state_data.timestamps
     PSI.IS.@assert_op resolution_ratio >= 1
 
@@ -204,8 +205,8 @@ function PSI.update_decision_state!(
         state_data_index = 1
         state_data.timestamps[:] .= range(
             simulation_time;
-            step=state_resolution,
-            length=PSI.get_num_rows(state_data),
+            step = state_resolution,
+            length = PSI.get_num_rows(state_data),
         )
     else
         state_data_index = PSI.find_timestamp_index(state_timestamps, simulation_time)
@@ -213,9 +214,11 @@ function PSI.update_decision_state!(
 
     offset = resolution_ratio - 1
     result_time_index = axes(store_data)[2]
+    max_state_index = PSI.get_num_rows(state_data)
     PSI.set_update_timestamp!(state_data, simulation_time)
     for t in result_time_index
-        state_range = state_data_index:(state_data_index + offset)
+        state_data_index > max_state_index && break
+        state_range = state_data_index:min(max_state_index, state_data_index + offset)
         for name in axes(state_data.values)[1], i in state_range
             # TODO: We could also interpolate here
             state_data.values[name, i] = store_data[name, t]
@@ -240,12 +243,16 @@ function PSI._update_parameter_values!(
     component_names, time = axes(parameter_array)
     model_resolution = PSI.get_resolution(model)
     state_data = PSI.get_dataset(state, PSI.get_attribute_key(attributes))
-    t_step = model_resolution ÷ state_data.resolution
+    if model_resolution < state_data.resolution
+        t_step = 1
+    else
+        t_step = model_resolution ÷ state_data.resolution
+    end
     @assert t_step > 0
     state_timestamps = state_data.timestamps
     max_state_index = PSI.get_num_rows(state_data)
     state_data_index = PSI.find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1
@@ -262,7 +269,7 @@ function PSI._update_parameter_values!(
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            PSI._set_param_value!(parameter_array, state_value, name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, t)
         end
     end
     return
@@ -283,11 +290,11 @@ function PSI._fix_parameter_value!(
         if time_var[end] < time[end]
             for t in time_var, name in component_names
                 t_ = 1 + (t - 1) * time[end] ÷ time_var[end]
-                JuMP.fix(variable[name, t], parameter_array[name, t_]; force=true)
+                JuMP.fix(variable[name, t], parameter_array[name, t_]; force = true)
             end
         elseif time_var[end] == time[end]
             for t in time_var, name in component_names
-                JuMP.fix(variable[name, t], parameter_array[name, t]; force=true)
+                JuMP.fix(variable[name, t], parameter_array[name, t]; force = true)
             end
         else
             error("invalid condition")
@@ -319,8 +326,8 @@ function PSI.update_decision_state!(
         state_data_index = 1
         state_data.timestamps[:] .= range(
             simulation_time;
-            step=state_resolution,
-            length=PSI.get_num_rows(state_data),
+            step = state_resolution,
+            length = PSI.get_num_rows(state_data),
         )
     else
         state_data_index = PSI.find_timestamp_index(state_timestamps, simulation_time)
@@ -328,9 +335,11 @@ function PSI.update_decision_state!(
 
     offset = resolution_ratio - 1
     result_time_index = axes(store_data)[3]
+    max_state_index = PSI.get_num_rows(state_data)
     PSI.set_update_timestamp!(state_data, simulation_time)
     for t in result_time_index
-        state_range = state_data_index:(state_data_index + offset)
+        state_data_index > max_state_index && break
+        state_range = state_data_index:min(max_state_index, state_data_index + offset)
         for name in device_names, service in service_names, i in state_range
             # TODO: We could also interpolate here
             state_data.values[name, service, i] = store_data[name, service, t]
@@ -376,7 +385,7 @@ function PSI._update_parameter_values!(
         @assert false
     end
     state_data_index = PSI.find_timestamp_index(state_timestamps, current_time)
-    sim_timestamps = range(current_time; step=model_resolution, length=time[end])
+    sim_timestamps = range(current_time; step = model_resolution, length = time[end])
     for t in time
         timestamp_ix = min(max_state_index, state_data_index + t_step)
         @debug "parameter horizon is over the step" max_state_index > state_data_index + 1
@@ -387,14 +396,13 @@ function PSI._update_parameter_values!(
             # Pass indices in this way since JuMP DenseAxisArray don't support view()
             state_value = state_values[name, service_name, state_data_index]
             if !isfinite(state_value)
-                @error model.name
                 error(
                     "The value for the system state used in $(PSI.encode_key_as_string(PSI.get_attribute_key(attributes))) is not a finite value $(state_value) \
                      This is commonly caused by referencing a state value at a time when such decision hasn't been made. \
                      Consider reviewing your models' horizon and interval definitions",
                 )
             end
-            PSI._set_param_value!(parameter_array, state_value, name, service_name, t)
+            _set_param_value_hss!(parameter_array, state_value, name, service_name, t)
         end
     end
     return
@@ -452,37 +460,12 @@ end
 
 function PSI.add_feedforward_arguments!(
     container::PSI.OptimizationContainer,
-    model::PSI.DeviceModel,
+    model::PSI.DeviceModel{V, <:AbstractHybridFormulation},
     devices::Vector{V},
 ) where {V <: PSY.HybridSystem}
     for ff in PSI.get_feedforwards(model)
         #@debug "arguments" ff V _group = LOG_GROUP_FEEDFORWARDS_CONSTRUCTION
         PSI._add_feedforward_arguments!(container, model, devices, ff)
     end
-    return
-end
-
-function PSI._add_feedforward_arguments!(
-    container::PSI.OptimizationContainer,
-    model::PSI.DeviceModel,
-    devices::Vector{T},
-    ff::PSI.AbstractAffectFeedforward,
-) where {T <: PSY.HybridSystem}
-    parameter_type = PSI.get_default_parameter_type(ff, T)
-    @show ff
-    PSI.add_parameters!(container, parameter_type, ff, model, devices)
-    return
-end
-
-function PSI._add_feedforward_arguments!(
-    container::PSI.OptimizationContainer,
-    model::PSI.DeviceModel,
-    devices::Vector{T},
-    ff::PSI.FixValueFeedforward,
-) where {T <: PSY.HybridSystem}
-    @show "fixvalueparam"
-    @show ff
-    parameter_type = PSI.get_default_parameter_type(ff, T)
-    PSI.add_parameters!(container, parameter_type, ff, model, devices)
     return
 end

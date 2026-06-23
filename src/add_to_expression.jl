@@ -61,7 +61,7 @@ function add_to_expression!(
             # TODO: This could be improved without requiring to read services for each component independently
             variable =
                 PSI.get_variable(container, U(), typeof(service), PSY.get_name(service))
-            fraction = PSY.get_ext(service)["served_fraction"]
+            fraction = PSY.get_deployed_fraction(service)
             mult = PSI.get_variable_multiplier(U, d, W(), service) * fraction
             for t in time_steps
                 PSI._add_to_jump_expression!(expression[name, t], variable[name, t], mult)
@@ -149,7 +149,7 @@ function add_to_expression!(
             # TODO: This could be improved without requiring to read services for each component independently
             variable =
                 PSI.get_variable(container, U(), typeof(service), PSY.get_name(service))
-            fraction = PSY.get_ext(service)["served_fraction"]
+            fraction = PSY.get_deployed_fraction(service)
             mult = PSI.get_variable_multiplier(U, d, W(), service) * fraction
             for t in time_steps
                 PSI._add_to_jump_expression!(expression[name, t], variable[name, t], mult)
@@ -238,6 +238,71 @@ function PSI.add_to_expression!(
     return
 end
 
+# Component Served Reserve Up
+function add_to_expression_componentservedreserveup!(
+    container::PSI.OptimizationContainer,
+    ::Type{T},
+    ::Type{U},
+    devices::Union{Vector{V}, IS.FlattenIteratorWrapper{V}},
+    ::W,
+    time_steps::UnitRange{Int64},
+) where {
+    T <: ComponentServedReserveUpExpressionType,
+    U <: PSI.VariableType,
+    V <: PSY.HybridSystem,
+    W <: AbstractHybridFormulation,
+}
+    expression = PSI.get_expression(container, T(), V)
+    for d in devices
+        name = PSY.get_name(d)
+        services = PSY.get_services(d)
+        for service in services
+            # TODO: This could be improved without requiring to read services for each component independently
+            if isa(service, PSY.Reserve{PSY.ReserveDown})
+                continue
+            end
+            variable =
+                PSI.get_variable(container, U(), typeof(service), PSY.get_name(service))
+            mult = PSI.get_variable_multiplier(U, d, W(), service)
+            deployed_frac = PSY.get_deployed_fraction(service)
+            for t in time_steps
+                PSI._add_to_jump_expression!(
+                    expression[name, t],
+                    variable[name, t],
+                    mult * deployed_frac,
+                )
+            end
+        end
+    end
+    return
+end
+
+function PSI.add_to_expression!(
+    container::PSI.OptimizationContainer,
+    expression::Type{T},
+    variable::Type{U},
+    devices::Union{Vector{V}, IS.FlattenIteratorWrapper{V}},
+    ::PSI.DeviceModel{V, W},
+    ::PSI.NetworkModel{X},
+) where {
+    T <: ComponentServedReserveUpExpressionType,
+    U <: PSI.VariableType,
+    V <: PSY.HybridSystem,
+    W <: HybridDispatchWithReserves,
+    X <: PM.AbstractPowerModel,
+}
+    time_steps = PSI.get_time_steps(container)
+    add_to_expression_componentservedreserveup!(
+        container,
+        expression,
+        variable,
+        devices,
+        W(),
+        time_steps,
+    )
+    return
+end
+
 # Component Reserve Down
 function add_to_expression_componentreservedown!(
     container::PSI.OptimizationContainer,
@@ -288,6 +353,71 @@ function PSI.add_to_expression!(
 }
     time_steps = PSI.get_time_steps(container)
     add_to_expression_componentreservedown!(
+        container,
+        expression,
+        variable,
+        devices,
+        W(),
+        time_steps,
+    )
+    return
+end
+
+# Component Served Reserve Down
+function add_to_expression_componentservedreservedown!(
+    container::PSI.OptimizationContainer,
+    ::Type{T},
+    ::Type{U},
+    devices::Union{Vector{V}, IS.FlattenIteratorWrapper{V}},
+    ::W,
+    time_steps::UnitRange{Int64},
+) where {
+    T <: ComponentServedReserveDownExpressionType,
+    U <: PSI.VariableType,
+    V <: PSY.HybridSystem,
+    W <: AbstractHybridFormulation,
+}
+    expression = PSI.get_expression(container, T(), V)
+    for d in devices
+        name = PSY.get_name(d)
+        services = PSY.get_services(d)
+        for service in services
+            # TODO: This could be improved without requiring to read services for each component independently
+            if isa(service, PSY.Reserve{PSY.ReserveUp})
+                continue
+            end
+            variable =
+                PSI.get_variable(container, U(), typeof(service), PSY.get_name(service))
+            mult = PSI.get_variable_multiplier(U, d, W(), service)
+            deployed_frac = PSY.get_deployed_fraction(service)
+            for t in time_steps
+                PSI._add_to_jump_expression!(
+                    expression[name, t],
+                    variable[name, t],
+                    mult * deployed_frac,
+                )
+            end
+        end
+    end
+    return
+end
+
+function PSI.add_to_expression!(
+    container::PSI.OptimizationContainer,
+    expression::Type{T},
+    variable::Type{U},
+    devices::Union{Vector{V}, IS.FlattenIteratorWrapper{V}},
+    ::PSI.DeviceModel{V, W},
+    ::PSI.NetworkModel{X},
+) where {
+    T <: ComponentServedReserveDownExpressionType,
+    U <: PSI.VariableType,
+    V <: PSY.HybridSystem,
+    W <: HybridDispatchWithReserves,
+    X <: PM.AbstractPowerModel,
+}
+    time_steps = PSI.get_time_steps(container)
+    add_to_expression_componentservedreservedown!(
         container,
         expression,
         variable,
@@ -408,5 +538,57 @@ function PSI.add_to_expression!(
     X <: PM.AbstractPowerModel,
 }
     add_to_expression_totalreservebalance!(container, expression, variable, devices, W())
+    return
+end
+
+function PSI.add_to_expression!(
+    container::PSI.OptimizationContainer,
+    ::Type{T},
+    ::Type{U},
+    devices::Union{Vector{V}, IS.FlattenIteratorWrapper{V}},
+    model::PSI.ServiceModel{X, W},
+) where {
+    T <: ReserveRangeExpressionLB,
+    U <: PSI.VariableType,
+    V <: PSY.Component,
+    X <: PSY.Reserve{PSY.ReserveDown},
+    W <: PSI.AbstractReservesFormulation,
+}
+    service_name = PSI.get_service_name(model)
+    variable = PSI.get_variable(container, U(), X, service_name)
+    if !PSI.has_container_key(container, T, V)
+        PSI.add_expressions!(container, T, devices, model)
+    end
+    expression = PSI.get_expression(container, T(), V, service_name)
+    for d in devices, t in PSI.get_time_steps(container)
+        name = PSY.get_name(d)
+        PSI._add_to_jump_expression!(expression[name, t], variable[name, t], -1.0)
+    end
+    return
+end
+
+function PSI.add_to_expression!(
+    container::PSI.OptimizationContainer,
+    ::Type{T},
+    ::Type{U},
+    devices::Union{Vector{V}, IS.FlattenIteratorWrapper{V}},
+    model::PSI.ServiceModel{X, W},
+) where {
+    T <: ReserveRangeExpressionUB,
+    U <: PSI.VariableType,
+    V <: PSY.Component,
+    X <: PSY.Reserve{PSY.ReserveUp},
+    W <: PSI.AbstractReservesFormulation,
+}
+    service_name = PSI.get_service_name(model)
+    variable = PSI.get_variable(container, U(), X, service_name)
+    if !PSI.has_container_key(container, T, V)
+        PSI.add_expressions!(container, T, devices, model)
+    end
+    expression = PSI.get_expression(container, T(), V, service_name)
+    for d in devices, t in PSI.get_time_steps(container)
+        name = PSY.get_name(d)
+        PSI._add_to_jump_expression!(expression[name, t], variable[name, t], 1.0)
+    end
     return
 end

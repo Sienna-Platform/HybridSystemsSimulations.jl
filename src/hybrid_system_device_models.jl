@@ -14,13 +14,37 @@ function PSI.get_default_attributes(
     ::Type{PSY.HybridSystem},
     ::Type{<:Union{PSI.FixedOutput, AbstractHybridFormulation}},
 )
-    return Dict{String, Any}("reservation" => true, "storage_reservation" => true)
+    return Dict{String, Any}(
+        "reservation" => true,
+        "storage_reservation" => true,
+        "energy_target" => false,
+        "regularization" => true,
+    )
 end
+
+# Preserve formulation for initial conditions: formulations that support services
+# must be preserved so IC build can handle hybrids with services.
+PSI.get_initial_conditions_device_model(
+    ::PSI.OperationModel,
+    model::PSI.DeviceModel{T, HybridDispatchWithReserves},
+) where {T <: PSY.HybridSystem} = model
 
 PSI.get_initial_conditions_device_model(
     ::PSI.OperationModel,
-    ::PSI.DeviceModel{T, <:AbstractHybridFormulation},
-) where {T <: PSY.HybridSystem} = PSI.DeviceModel(T, HybridEnergyOnlyDispatch)
+    model::PSI.DeviceModel{T, HybridEnergyOnlyDispatch},
+) where {T <: PSY.HybridSystem} = model
+
+PSI.get_initial_conditions_device_model(
+    ::PSI.OperationModel,
+    model::PSI.DeviceModel{T, HybridFixedDA},
+) where {T <: PSY.HybridSystem} = model
+
+# Fallback for other AbstractHybridFormulation
+PSI.get_initial_conditions_device_model(
+    ::PSI.OperationModel,
+    ::PSI.DeviceModel{T, D},
+) where {T <: PSY.HybridSystem, D <: AbstractHybridFormulation} =
+    PSI.DeviceModel(T, HybridEnergyOnlyDispatch)
 
 PSI.get_multiplier_value(
     ::RenewablePowerTimeSeries,
@@ -136,7 +160,9 @@ PSI.get_variable_upper_bound(
     ::PSI.EnergyVariable,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_state_of_charge_limits(PSY.get_storage(d)).max
+) =
+    PSY.get_storage_level_limits(PSY.get_storage(d)).max *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 PSI.get_variable_upper_bound(
     ::PSI.OnVariable,
@@ -149,6 +175,15 @@ PSI.get_variable_upper_bound(
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
 ) = nothing
+
+PSI.get_variable_upper_bound(
+    ::BatteryRegularizationVariable,
+    d::PSY.HybridSystem,
+    ::AbstractHybridFormulation,
+) = max(
+    PSY.get_input_active_power_limits(PSY.get_storage(d)).max,
+    PSY.get_output_active_power_limits(PSY.get_storage(d)).max,
+)
 
 # Lower Bound
 PSI.get_variable_lower_bound(
@@ -179,7 +214,9 @@ PSI.get_variable_lower_bound(
     ::PSI.EnergyVariable,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_state_of_charge_limits(PSY.get_storage(d)).min
+) =
+    PSY.get_storage_level_limits(PSY.get_storage(d)).min *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 PSI.get_variable_lower_bound(
     ::PSI.OnVariable,
@@ -192,6 +229,12 @@ PSI.get_variable_lower_bound(
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
 ) = nothing
+
+PSI.get_variable_lower_bound(
+    ::BatteryRegularizationVariable,
+    d::PSY.HybridSystem,
+    ::AbstractHybridFormulation,
+) = 0.0
 
 # Binaries
 PSI.get_variable_binary(
@@ -229,12 +272,40 @@ PSI.get_variable_binary(
     ::Type{PSY.HybridSystem},
     ::AbstractHybridFormulation,
 ) = true
+PSI.get_variable_binary(
+    ::BatteryEnergyShortageVariable,
+    ::Type{<:PSY.HybridSystem},
+    ::AbstractHybridFormulation,
+) = false
+PSI.get_variable_binary(
+    ::BatteryEnergySurplusVariable,
+    ::Type{<:PSY.HybridSystem},
+    ::AbstractHybridFormulation,
+) = false
+PSI.get_variable_binary(
+    ::BatteryChargeCyclingSlackVariable,
+    ::Type{<:PSY.HybridSystem},
+    ::AbstractHybridFormulation,
+) = false
+PSI.get_variable_binary(
+    ::BatteryDischargeCyclingSlackVariable,
+    ::Type{<:PSY.HybridSystem},
+    ::AbstractHybridFormulation,
+) = false
+PSI.get_variable_binary(
+    ::BatteryRegularizationVariable,
+    ::Type{<:PSY.HybridSystem},
+    ::AbstractHybridFormulation,
+) = false
 
 PSI.initial_condition_default(
     ::PSI.InitialEnergyLevel,
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
-) = PSY.get_initial_energy(PSY.get_storage(d))
+) =
+    PSY.get_initial_storage_capacity_level(PSY.get_storage(d)) *
+    PSY.get_storage_capacity(PSY.get_storage(d))
+
 PSI.initial_condition_variable(
     ::PSI.InitialEnergyLevel,
     d::PSY.HybridSystem,
@@ -247,12 +318,13 @@ PSI.get_expression_type_for_reserve(
     ::PSI.ActivePowerReserveVariable,
     ::Type{<:PSY.HybridSystem},
     ::Type{<:PSY.Reserve{PSY.ReserveUp}},
-) = PSI.ReserveRangeExpressionUB
+) = ReserveRangeExpressionUB
+
 PSI.get_expression_type_for_reserve(
     ::PSI.ActivePowerReserveVariable,
     ::Type{<:PSY.HybridSystem},
     ::Type{<:PSY.Reserve{PSY.ReserveDown}},
-) = PSI.ReserveRangeExpressionLB
+) = ReserveRangeExpressionLB
 
 PSI.get_variable_binary(
     ::ReserveVariableOut,
@@ -335,6 +407,21 @@ PSI.get_parameter_multiplier(
     ::PSY.HybridSystem,
     ::Union{HybridFixedDA, HybridEnergyOnlyDispatch, HybridDispatchWithReserves},
 ) = 1.0
+
+PSI.get_parameter_multiplier(
+    ::Union{CyclingDischargeLimitParameter, CyclingChargeLimitParameter},
+    ::PSY.HybridSystem,
+    ::Union{HybridFixedDA, HybridEnergyOnlyDispatch, HybridDispatchWithReserves},
+) = 1.0
+
+PSI.get_initial_parameter_value(
+    ::Union{CyclingDischargeLimitParameter, CyclingChargeLimitParameter},
+    d::PSY.HybridSystem,
+    ::AbstractHybridFormulation,
+) =
+    PSY.get_cycle_limits(PSY.get_storage(d)) *
+    PSY.get_storage_level_limits(PSY.get_storage(d)).max *
+    PSY.get_storage_capacity(PSY.get_storage(d))
 
 ###################################################################
 ######################## Initial Conditions #######################
