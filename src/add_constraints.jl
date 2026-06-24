@@ -1836,7 +1836,7 @@ function _add_constraints_charging_reservelimit!(
     ::W,
 ) where {
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
-    W <:MerchantModelWithReserves,
+    W <: MerchantModelWithReserves,
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
@@ -1881,8 +1881,10 @@ function PSI.add_constraints!(
     p_ch = PSI.get_variable(container, BatteryCharge(), D)
     reg_ch_up = PSI.get_expression(container, ChargeReserveUpExpression(), D)
     reg_ch_dn = PSI.get_expression(container, ChargeReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -1949,11 +1951,13 @@ function PSI.add_constraints!(
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     status_st = PSI.get_variable(container, BatteryStatus(), D)
-    p_ds = PSI.get_variable(container,BatteryDischarge(), D)
+    p_ds = PSI.get_variable(container, BatteryDischarge(), D)
     reg_ds_up = PSI.get_expression(container, DischargeReserveUpExpression(), D)
     reg_ds_dn = PSI.get_expression(container, DischargeReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
 
     for device in devices, t in time_steps
         ci_name = PSY.get_name(device)
@@ -1987,8 +1991,10 @@ function _add_constraints_renewablereserve_limit!(
     p_re = PSI.get_variable(container, EnergyRenewableBid(), D)
     reg_re_up = PSI.get_expression(container, RenewableReserveUpExpression(), D)
     reg_re_dn = PSI.get_expression(container, RenewableReserveDownExpression(), D)
-    con_ub = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="ub")
-    con_lb = PSI.add_constraints_container!(container, T(), D, names, time_steps, meta="lb")
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
     param_container = PSI.get_parameter(container, P(), D)
     for device in devices
         ci_name = PSY.get_name(device)

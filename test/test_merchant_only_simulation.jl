@@ -1,82 +1,73 @@
 @testset "Test HybridSystem Merchant-Only Simulation" begin
     # This test exercises a `Simulation` that contains ONLY the merchant
-    # decision model (`MerchantHybridEnergyCase`). The merchant model receives
-    # day-ahead and real-time prices as forecasts via CSV files (loaded into
-    # the system `ext` dictionary), so no other decision/emulation model is
-    # required to drive the simulation.
+    # decision model (`MerchantHybridEnergyCase`). The merchant model is driven
+    # by day-ahead and real-time market prices attached to the hybrid as time
+    # series, so no other decision/emulation model is required.
 
-    horizon_merchant_rt = 24 * 12        # 288 5-min intervals = 24 hours
-    horizon_merchant_da = 24             # 24 hourly intervals = 24 hours
-    interval = Hour(24)
-
-    sys_rts_merchant = PSB.build_RTS_GMLC_RT_sys(
-        raw_data=PSB.RTS_DIR,
-        horizon=horizon_merchant_rt,
-        interval=interval,
+    sys_rts_merchant = PSB.build_RTS_GMLC_RT_sys(;
+        raw_data = PSB.RTS_DIR,
+        horizon = 24,
+        interval = Hour(1),
     )
 
-    # The merchant model needs a hybrid system to dispatch and a renewable
-    # cost adjustment so that curtailment is meaningful. Reuse the existing
-    # test utilities.
+    # The merchant model needs a hybrid system to dispatch and a renewable cost
+    # adjustment so that curtailment is meaningful. Reuse the existing test
+    # utilities and attach the market price time series.
     modify_ren_curtailment_cost!(sys_rts_merchant)
-    add_hybrid_to_chuhsi_bus!(sys_rts_merchant)
+    add_hybrid_to_chuhsi_bus!(sys_rts_merchant; horizon_rt_steps = 288)
+    hy_sys = first(get_components(HybridSystem, sys_rts_merchant))
+    attach_hybrid_market_time_series!(
+        sys_rts_merchant,
+        hy_sys;
+        bus_name = "chuhsi",
+        rt_steps = 288,
+        da_steps = 288,
+        injection_rt_steps = max(288, 300),
+        use_rt_resolution_for_da = true,
+    )
+    strip_non_hybrid_single_time_series!(sys_rts_merchant)
 
-    sys = sys_rts_merchant
-    sys.internal.ext = Dict{String, DataFrame}()
-    dic = PSY.get_ext(sys)
-
-    # Load the forecast prices from the test inputs. These cover three days
-    # starting 2020-10-03, which is enough for a multi-step simulation.
-    bus_name = "chuhsi"
-    dic["λ_da_df"] =
-        CSV.read(joinpath(TEST_DIR, "inputs/$(bus_name)_DA_prices.csv"), DataFrame)
-    dic["λ_rt_df"] =
-        CSV.read(joinpath(TEST_DIR, "inputs/$(bus_name)_RT_prices.csv"), DataFrame)
-    dic["horizon_RT"] = horizon_merchant_rt
-    dic["horizon_DA"] = horizon_merchant_da
-
-    hy_sys = first(get_components(HybridSystem, sys))
-    PSY.set_ext!(hy_sys, deepcopy(dic))
-
-    # Build the merchant decision model. Setting `ext["RT"] = true` forces
-    # the decision model to use the renewable time series that ships with
-    # the RTS-GMLC RT system (`RenewableDispatch__max_active_power`) which
-    # is required when running inside a `Simulation`.
+    template = ProblemTemplate(CopperPlatePowerModel)
+    set_device_model!(template, DeviceModel(PSY.HybridSystem, HybridEnergyOnlyDispatch))
     decision_optimizer_DA = DecisionModel(
         MerchantHybridEnergyCase,
-        ProblemTemplate(CopperPlatePowerModel),
-        sys;
-        optimizer=HiGHS_optimizer,
-        calculate_conflict=true,
-        store_variable_names=true,
-        name="MerchantHybridEnergyCase_DA",
+        template,
+        sys_rts_merchant;
+        optimizer = HiGHS_optimizer,
+        calculate_conflict = true,
+        store_variable_names = true,
+        initial_time = DateTime("2020-10-03T00:00:00"),
+        horizon = Hour(24),
+        resolution = Minute(5),
+        interval = Hour(1),
+        name = "MerchantHybridEnergyCase_DA",
     )
-    decision_optimizer_DA.ext["RT"] = true
 
     # Build a Simulation that contains ONLY the merchant decision model.
-    models = SimulationModels(decision_models=[decision_optimizer_DA])
+    models = SimulationModels(; decision_models = [decision_optimizer_DA])
 
-    sequence = SimulationSequence(
-        models=models,
-        ini_cond_chronology=InterProblemChronology(),
+    sequence = SimulationSequence(;
+        models = models,
+        ini_cond_chronology = InterProblemChronology(),
     )
 
-    num_steps = 2
+    # The hybrid merchant fixtures leave a single forecast window that satisfies
+    # PowerSimulations `_check_steps` for this RT system.
+    num_steps = 1
     start_time = DateTime("2020-10-03T00:00:00")
 
-    sim = Simulation(
-        name="merchant_only_sim",
-        steps=num_steps,
-        models=models,
-        sequence=sequence,
-        initial_time=start_time,
-        simulation_folder=mktempdir(cleanup=true),
+    sim = Simulation(;
+        name = "merchant_only_sim",
+        steps = num_steps,
+        models = models,
+        sequence = sequence,
+        initial_time = start_time,
+        simulation_folder = mktempdir(; cleanup = true),
     )
 
-    build_out = build!(sim)
-    @test build_out == PSI.BuildStatus.BUILT
-    execute_out = execute!(sim; enable_progress_bar=false)
-    @test execute_out == PSI.RunStatus.SUCCESSFUL
+    @test build!(sim) == PSI.SimulationBuildStatus.BUILT
+    @test execute!(sim; enable_progress_bar = false) ==
+          PSI.RunStatus.SUCCESSFULLY_FINALIZED
 
     results = SimulationResults(sim)
     result_opt = get_decision_problem_results(results, "MerchantHybridEnergyCase_DA")
@@ -92,12 +83,11 @@
     @test length(rt_bid_out) == num_steps
     @test length(rt_bid_in) == num_steps
 
-    # And each result entry has the expected length according to the model
-    # horizons.
+    # DA bids are hourly (24 slots); RT bids are 5-min (288 slots).
     for (_, df) in da_bid_out
-        @test size(df, 1) == horizon_merchant_da
+        @test size(df, 1) == 24
     end
     for (_, df) in rt_bid_out
-        @test size(df, 1) == horizon_merchant_rt
+        @test size(df, 1) == 288
     end
 end
