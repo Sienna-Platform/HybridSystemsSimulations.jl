@@ -2,7 +2,7 @@
 
 [![Main - CI](https://github.com/Sienna-Platform/HybridSystemsSimulations.jl/actions/workflows/main-tests.yml/badge.svg)](https://github.com/Sienna-Platform/HybridSystemsSimulations.jl/actions/workflows/main-tests.yml)
 [![codecov](https://codecov.io/gh/Sienna-Platform/HybridSystemsSimulations.jl/branch/main/graph/badge.svg?token=4TAeajF0h6)](https://codecov.io/gh/Sienna-Platform/HybridSystemsSimulations.jl)
-[![Documentation Build](https://github.com/Sienna-Platform/HybridSystemsSimulations.jl/actions/workflows/docs.yml/badge.svg)](https://sienna-platform.github.io/HybridSystemsSimulations.jl/dev/)
+[![Documentation Build](https://github.com/Sienna-Platform/HybridSystemsSimulations.jl/actions/workflows/docs.yml/badge.svg)](https://sienna-platform.github.io/HybridSystemsSimulations.jl/stable/)
 [<img src="https://img.shields.io/badge/slack-@Sienna/HybridSystemsSimulations-sienna.svg?logo=slack">](https://join.slack.com/t/core-sienna/shared_invite/zt-glam9vdu-o8A9TwZTZqqNTKHa7q3BpQ)
 
 ## Development
