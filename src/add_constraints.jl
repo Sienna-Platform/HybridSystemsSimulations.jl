@@ -1836,12 +1836,12 @@ function _add_constraints_charging_reservelimit!(
     ::W,
 ) where {
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
-    W <: AbstractHybridFormulation,
+    W <: MerchantModelWithReserves,
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     status_st = PSI.get_variable(container, BatteryStatus(), D)
-    p_ch = PSI.get_variable(container, BatteryCharge(), D)
+    p_ch = PSI.get_variable(container, EnergyBatteryChargeBid(), D)
     reg_ch_up = PSI.get_expression(container, ChargeReserveUpExpression(), D)
     reg_ch_dn = PSI.get_expression(container, ChargeReserveDownExpression(), D)
     con_ub =
@@ -1875,7 +1875,30 @@ function PSI.add_constraints!(
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
     W <: HybridDispatchWithReserves,
 } where {D <: PSY.HybridSystem}
-    _add_constraints_charging_reservelimit!(container, T, devices, W())
+    time_steps = PSI.get_time_steps(container)
+    names = [PSY.get_name(d) for d in devices]
+    status_st = PSI.get_variable(container, BatteryStatus(), D)
+    p_ch = PSI.get_variable(container, BatteryCharge(), D)
+    reg_ch_up = PSI.get_expression(container, ChargeReserveUpExpression(), D)
+    reg_ch_dn = PSI.get_expression(container, ChargeReserveDownExpression(), D)
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
+
+    for device in devices, t in time_steps
+        ci_name = PSY.get_name(device)
+        max_limit = PSY.get_input_active_power_limits(PSY.get_storage(device)).max
+        con_ub[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_ch[ci_name, t] + reg_ch_dn[ci_name, t] <=
+            max_limit * (1.0 - status_st[ci_name, t])
+        )
+        con_lb[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_ch[ci_name, t] - reg_ch_up[ci_name, t] >= 0.0
+        )
+    end
     return
 end
 
@@ -1887,12 +1910,12 @@ function _add_constraints_discharging_reservelimit!(
     ::W,
 ) where {
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
-    W <: AbstractHybridFormulation,
+    W <: MerchantModelWithReserves,
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     status_st = PSI.get_variable(container, BatteryStatus(), D)
-    p_ds = PSI.get_variable(container, BatteryDischarge(), D)
+    p_ds = PSI.get_variable(container, EnergyBatteryDischargeBid(), D)
     reg_ds_up = PSI.get_expression(container, DischargeReserveUpExpression(), D)
     reg_ds_dn = PSI.get_expression(container, DischargeReserveDownExpression(), D)
     con_ub =
@@ -1925,7 +1948,30 @@ function PSI.add_constraints!(
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
     W <: HybridDispatchWithReserves,
 } where {D <: PSY.HybridSystem}
-    _add_constraints_discharging_reservelimit!(container, T, devices, W())
+    time_steps = PSI.get_time_steps(container)
+    names = [PSY.get_name(d) for d in devices]
+    status_st = PSI.get_variable(container, BatteryStatus(), D)
+    p_ds = PSI.get_variable(container, BatteryDischarge(), D)
+    reg_ds_up = PSI.get_expression(container, DischargeReserveUpExpression(), D)
+    reg_ds_dn = PSI.get_expression(container, DischargeReserveDownExpression(), D)
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
+
+    for device in devices, t in time_steps
+        ci_name = PSY.get_name(device)
+        max_limit = PSY.get_input_active_power_limits(PSY.get_storage(device)).max
+        con_ub[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_ds[ci_name, t] + reg_ds_up[ci_name, t] <= max_limit * status_st[ci_name, t]
+        )
+        con_lb[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_ds[ci_name, t] - reg_ds_dn[ci_name, t] >= 0.0
+        )
+    end
+    return
 end
 
 ############## Renewable Constraints ReserveLimit, HybridSystem ###################
@@ -1937,7 +1983,46 @@ function _add_constraints_renewablereserve_limit!(
     ::W,
 ) where {
     U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
-    W <: AbstractHybridFormulation,
+    W <: MerchantModelWithReserves,
+} where {D <: PSY.HybridSystem}
+    time_steps = PSI.get_time_steps(container)
+    P = RenewablePowerTimeSeries
+    names = [PSY.get_name(d) for d in devices]
+    p_re = PSI.get_variable(container, EnergyRenewableBid(), D)
+    reg_re_up = PSI.get_expression(container, RenewableReserveUpExpression(), D)
+    reg_re_dn = PSI.get_expression(container, RenewableReserveDownExpression(), D)
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    con_lb =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "lb")
+    param_container = PSI.get_parameter(container, P(), D)
+    for device in devices
+        ci_name = PSY.get_name(device)
+        multiplier = PSY.get_max_active_power(device.renewable_unit)
+        param = PSI.get_parameter_column_refs(param_container, ci_name)
+        for t in time_steps
+            con_ub[ci_name, t] = JuMP.@constraint(
+                PSI.get_jump_model(container),
+                p_re[ci_name, t] + reg_re_up[ci_name, t] <= multiplier * param[t]
+            )
+            con_lb[ci_name, t] = JuMP.@constraint(
+                PSI.get_jump_model(container),
+                p_re[ci_name, t] - reg_re_dn[ci_name, t] >= 0.0
+            )
+        end
+    end
+    return
+end
+
+function PSI.add_constraints!(
+    container::PSI.OptimizationContainer,
+    T::Type{<:RenewableReserveLimit},
+    devices::U,
+    ::PSI.DeviceModel{D, W},
+    network_model::PSI.NetworkModel{<:PM.AbstractPowerModel},
+) where {
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+    W <: HybridDispatchWithReserves,
 } where {D <: PSY.HybridSystem}
     time_steps = PSI.get_time_steps(container)
     P = RenewablePowerTimeSeries
@@ -1965,19 +2050,6 @@ function _add_constraints_renewablereserve_limit!(
             )
         end
     end
-end
-
-function PSI.add_constraints!(
-    container::PSI.OptimizationContainer,
-    T::Type{<:RenewableReserveLimit},
-    devices::U,
-    ::PSI.DeviceModel{D, W},
-    network_model::PSI.NetworkModel{<:PM.AbstractPowerModel},
-) where {
-    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
-    W <: HybridDispatchWithReserves,
-} where {D <: PSY.HybridSystem}
-    _add_constraints_renewablereserve_limit!(container, T, devices, W())
     return
 end
 
@@ -2387,7 +2459,7 @@ function _add_thermallimit_withreserves!(
     time_steps = PSI.get_time_steps(container)
     names = [PSY.get_name(d) for d in devices]
     varon = PSI.get_variable(container, PSI.OnVariable(), D)
-    p_th = PSI.get_variable(container, ThermalPower(), D)
+    p_th = PSI.get_variable(container, EnergyThermalBid(), D)
     reg_th_up = PSI.get_expression(container, ThermalReserveUpExpression(), D)
     reg_th_dn = PSI.get_expression(container, ThermalReserveDownExpression(), D)
     con_ub =
