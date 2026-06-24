@@ -63,6 +63,7 @@ Respect the include order in `src/HybridSystemsSimulations.jl` (above): `core/` 
 ## How It Extends PowerSimulations.jl
 
   - **Custom variables**: market bids (`EnergyDABidOut/In`, `EnergyRTBidOut/In`, `BidReserveVariableOut/In`), internal asset variables (`ThermalPower`, `RenewablePower`, `BatteryCharge/Discharge`, `BatteryStatus`), reserves (`TotalReserve`, `ReserveVariableOut/In`, slacks), and bilevel dual/complementarity variables (`λ`, `μ`, `γ`, `κ`, `ν` families).
+
   - **Custom parameters**: `DayAheadEnergyPrice`, `RealTimeEnergyPrice`, `AncillaryServicePrice`, `CyclingCharge/DischargeLimitParameter`.
   - **Feedforwards**: `CyclingChargeLimitFeedforward`, `CyclingDischargeLimitFeedforward` for DA→RT cycling-budget coupling.
   - **PSI internal overrides** (sensitive to PSI version changes — re-verify on every PSI bump):
@@ -86,6 +87,7 @@ Expression construction should be inlined at the point of use. Only store an exp
 ## Time and Data Conventions (important — easy to get wrong)
 
   - **DA bids are hourly slots; RT variables follow the model resolution.** The DA axis is `merchant_da_time_step_range(container, hybrid)` = `1:min(horizon_hours, DA-series length)`; the variable, parameter, constraint, and objective axes must all use it. RT-to-DA index mapping goes through `merchant_rt_to_da_tmap(rt_len, da_len)` — never hand-roll `div`-based maps.
+
   - **Storage energy quantities are in energy units**, computed as `get_storage_level_limits(storage).{min,max} * get_storage_capacity(storage)`. Same convention for initial conditions (`get_initial_storage_capacity_level * capacity`), cycling limits, and `storage_target`. Do not use the bare level fractions.
   - **Market prices are hybrid-attached scalar `SingleTimeSeries`**, keyed by name (defaults `"DA"`/`"RT"`, override via `model.ext["day_ahead_time_series_key"]` / `"real_time_time_series_key"`):
     
