@@ -73,6 +73,14 @@ struct BatteryDischarge <: HybridAssetVariableType end
 struct BatteryStatus <: HybridAssetVariableType end
 struct BatteryEnergyShortageVariable <: PSI.VariableType end
 struct BatteryEnergySurplusVariable <: PSI.VariableType end
+
+"""
+    LOpVariable
+
+Scalar operating DC load (MW) decision for [`HybridHostingCapacityDispatch`](@ref).
+Bounds ``[0, l_{\\text{op,ub}}]`` from the device-model attribute `"l_op_ub"`.
+"""
+struct LOpVariable <: PSI.VariableType end
 struct BatteryChargeCyclingSlackVariable <: PSI.VariableType end
 struct BatteryDischargeCyclingSlackVariable <: PSI.VariableType end
 abstract type BatteryRegularizationVariable <: PSI.VariableType end

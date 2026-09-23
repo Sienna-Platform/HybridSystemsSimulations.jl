@@ -2,6 +2,7 @@ module HybridSystemsSimulations
 
 # Device Formulations
 export HybridEnergyOnlyDispatch
+export HybridHostingCapacityDispatch
 export HybridFixedDA
 export HybridDispatchWithReserves
 
@@ -21,6 +22,7 @@ export BidReserveVariableIn
 export ReserveVariableOut
 export ReserveVariableIn
 export TotalReserve
+export LOpVariable
 
 # Auxiliary variables
 

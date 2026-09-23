@@ -354,6 +354,50 @@ renewable variable cost, and penalties for energy target deviations (if enabled)
 struct HybridEnergyOnlyDispatch <: AbstractHybridFormulation end
 
 """
+    HybridHostingCapacityDispatch
+
+Device formulation for hosting-capacity studies that maximize a scalar operating DC load
+``L_{\\text{op}}`` (MW) at each hybrid. Must-serve electric load and PCC import/export rating
+co-scale with the same decision:
+
+```text
+P_ld(t) = σ(t) * L_op
+0 ≤ p_in(t), p_out(t) ≤ L_op
+```
+
+where ``σ(t)`` is the normalized `ElectricLoadTimeSeries` shape (build the hybrid electric load
+with `max_active_power = 1.0`). Reservation status uses a big-M with the fixed device-model
+attribute `l_op_ub` (not ``u * L_op``):
+
+```text
+p_out(t) ≤ L_op
+p_out(t) ≤ u(t) * l_op_ub
+p_in(t)  ≤ L_op
+p_in(t)  ≤ (1 - u(t)) * l_op_ub
+```
+
+Load-only hybrids are supported (empty thermal / renewable / storage branches are skipped).
+
+**Required device-model attribute:**
+
+  - `"l_op_ub"` — fixed upper bound on ``L_{\\text{op}}`` used for variable bounds and status big-M
+
+**Optional attributes:** same reservation / storage flags as [`HybridEnergyOnlyDispatch`](@ref);
+`"l_dc_anchor"` may be set for reporting only (not used in JuMP).
+
+**Variables:**
+
+  - [`LOpVariable`](@ref): scalar ``L_{\\text{op}} \\in [0, l_{\\text{op,ub}}]`` per hybrid
+  - PCC in/out and reservation as in [`HybridEnergyOnlyDispatch`](@ref), plus optional asset vars
+
+**Objective:**
+
+Maximize ``L_{\\text{op}}`` (PSI minimizes, so a negative unit benefit is added). Asset cost terms
+are omitted for this formulation.
+"""
+struct HybridHostingCapacityDispatch <: AbstractHybridFormulation end
+
+"""
     HybridFixedDA
 
 Device formulation for a hybrid system with day-ahead (DA) energy bids/offers fixed;

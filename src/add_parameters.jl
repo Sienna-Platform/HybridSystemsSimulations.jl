@@ -121,6 +121,7 @@ function _add_time_series_parameters(
     param,
     devices::AbstractVector{<:PSY.HybridSystem};
     timeseries_key::Union{Nothing, String} = nothing,
+    formulation::Union{Nothing, AbstractHybridFormulation} = nothing,
 )
     # Injection profiles live as static `SingleTimeSeries` on the hybrid; registering them as the
     # system default `DeterministicSingleTimeSeries` breaks simulation updates (HDF5 slice vs full
@@ -210,7 +211,12 @@ function _add_time_series_parameters(
 
     for device in devices
         name = PSY.get_name(device)
-        multiplier = _get_hybrid_ts_multiplier(param, device)
+        multiplier =
+            if formulation isa HybridHostingCapacityDispatch && param isa ElectricLoadTimeSeries
+                _get_hybrid_ts_multiplier(param, device, formulation)
+            else
+                _get_hybrid_ts_multiplier(param, device)
+            end
         for step in time_steps
             PSI.set_multiplier!(param_container, multiplier, name, step)
         end
@@ -293,6 +299,15 @@ end
 
 function _get_hybrid_ts_multiplier(::ElectricLoadTimeSeries, device::PSY.HybridSystem)
     return PSY.get_max_active_power(PSY.get_electric_load(device))
+end
+
+# Hosting-capacity σ(t) is a unit-normalized shape; L_op scales the must-serve load.
+function _get_hybrid_ts_multiplier(
+    ::ElectricLoadTimeSeries,
+    ::PSY.HybridSystem,
+    ::HybridHostingCapacityDispatch,
+)
+    return 1.0
 end
 
 function _get_hybrid_scalar_forecast_values(
@@ -471,8 +486,16 @@ function add_time_series_parameters!(
     devices::AbstractVector{<:PSY.HybridSystem},
     ts_name = "RenewableDispatch__max_active_power";
     timeseries_key::Union{Nothing, String} = nothing,
+    formulation::Union{Nothing, AbstractHybridFormulation} = nothing,
 )
-    _add_time_series_parameters(container, ts_name, param, devices; timeseries_key)
+    _add_time_series_parameters(
+        container,
+        ts_name,
+        param,
+        devices;
+        timeseries_key,
+        formulation,
+    )
 end
 
 function add_time_series_parameters!(
@@ -481,8 +504,16 @@ function add_time_series_parameters!(
     devices::AbstractVector{<:PSY.HybridSystem},
     ts_name = "PowerLoad__max_active_power";
     timeseries_key::Union{Nothing, String} = nothing,
+    formulation::Union{Nothing, AbstractHybridFormulation} = nothing,
 )
-    _add_time_series_parameters(container, ts_name, param, devices; timeseries_key)
+    _add_time_series_parameters(
+        container,
+        ts_name,
+        param,
+        devices;
+        timeseries_key,
+        formulation,
+    )
     return
 end
 
@@ -501,6 +532,7 @@ function PSI._add_parameters!(
         param,
         collect(devices);
         timeseries_key = nothing,
+        formulation = W(),
     )
     return
 end
