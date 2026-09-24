@@ -3,7 +3,9 @@
     modify_ren_curtailment_cost!(sys_rts_da)
     add_hybrid_to_chuhsi_bus!(sys_rts_da)
     hybrid = first(get_components(HybridSystem, sys_rts_da))
-    l_op_ub = PSY.get_output_active_power_limits(hybrid).max
+    # Device limits and l_op_ub are SYSTEM_BASE pu (base_power typically 100).
+    l_op_ub_pu = Float64(PSY.get_output_active_power_limits(hybrid).max)
+    base_mw = Float64(PSY.get_base_power(sys_rts_da))
 
     template_uc_dcp = get_uc_dcp_template()
     set_device_model!(
@@ -12,7 +14,7 @@
             PSY.HybridSystem,
             HybridHostingCapacityDispatch;
             attributes = Dict{String, Any}(
-                "l_op_ub" => Float64(l_op_ub),
+                "l_op_ub" => l_op_ub_pu,
                 "cycling" => false,
                 "regularization" => false,
                 "reservation" => true,
@@ -35,28 +37,35 @@
 
     res = PSI.OptimizationProblemResults(m)
     lop_df = PSI.read_variable(res, "LOpVariable__HybridSystem")
-    lop_val = nothing
-    for name in names(lop_df)
-        v = first(lop_df[!, name])
-        if v isa Number
-            lop_val = Float64(v)
-            break
-        end
-    end
-    @test lop_val !== nothing
-    @test lop_val > 0.0
+    @test :value in propertynames(lop_df)
+    # convert_result_to_natural_units(::Type{LOpVariable}) → MW
+    lop_mw = Float64(first(lop_df[!, :value]))
+    @test lop_mw > 0.0
+    @test lop_mw != 1.0 || l_op_ub_pu * base_mw ≈ 1.0
+    @test lop_mw <= l_op_ub_pu * base_mw + 1e-6
 end
 
 @testset "HybridHostingCapacityDispatch load-only solve LOp > 0" begin
     sys = build_system(PSISystems, "modified_RTS_GMLC_DA_sys")
+    # Match HostingCapacity production: -L_op only wins when injection costs are zero.
+    modify_ren_curtailment_cost!(sys)
+    for g in get_components(ThermalGen, sys)
+        set_operation_cost!(g, PSY.ThermalGenerationCost(nothing))
+    end
+    for g in get_components(HydroGen, sys)
+        set_operation_cost!(g, PSY.HydroGenerationCost(nothing))
+    end
     bus = get_component(Bus, sys, "Chuhsi")
+    base_mw = Float64(PSY.get_base_power(sys))
+    l_op_ub_mw = 50.0
+    l_op_ub_pu = l_op_ub_mw / base_mw
     load = PowerLoad(;
         name = "hosting_load_only",
         available = true,
         bus = bus,
         active_power = 1.0,
         reactive_power = 0.0,
-        base_power = 100.0,
+        base_power = base_mw,
         max_active_power = 1.0,
         max_reactive_power = 0.0,
     )
@@ -67,16 +76,16 @@ end
         bus = bus,
         active_power = 0.0,
         reactive_power = 0.0,
-        base_power = 100.0,
+        base_power = base_mw,
         operation_cost = PSY.MarketBidCost(nothing),
         thermal_unit = nothing,
         electric_load = load,
         storage = nothing,
         renewable_unit = nothing,
         interconnection_impedance = 0.0 + 0.0im,
-        interconnection_rating = 50.0,
-        input_active_power_limits = (min = 0.0, max = 50.0),
-        output_active_power_limits = (min = 0.0, max = 50.0),
+        interconnection_rating = l_op_ub_pu,
+        input_active_power_limits = (min = 0.0, max = l_op_ub_pu),
+        output_active_power_limits = (min = 0.0, max = l_op_ub_pu),
         reactive_power_limits = nothing,
     )
     add_component!(sys, hybrid)
@@ -100,7 +109,7 @@ end
             PSY.HybridSystem,
             HybridHostingCapacityDispatch;
             attributes = Dict{String, Any}(
-                "l_op_ub" => 50.0,
+                "l_op_ub" => l_op_ub_pu,
                 "cycling" => false,
                 "regularization" => false,
                 "reservation" => true,
@@ -122,14 +131,9 @@ end
 
     res = PSI.OptimizationProblemResults(m)
     lop_df = PSI.read_variable(res, "LOpVariable__HybridSystem")
-    lop_val = nothing
-    for name in names(lop_df)
-        v = first(lop_df[!, name])
-        if v isa Number
-            lop_val = Float64(v)
-            break
-        end
-    end
-    @test lop_val !== nothing
-    @test lop_val > 0.0
+    @test :value in propertynames(lop_df)
+    lop_mw = Float64(first(lop_df[!, :value]))
+    @test lop_mw > 0.0
+    @test lop_mw != 1.0
+    @test lop_mw <= l_op_ub_mw + 1e-6
 end

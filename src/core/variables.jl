@@ -77,8 +77,10 @@ struct BatteryEnergySurplusVariable <: PSI.VariableType end
 """
     LOpVariable
 
-Scalar operating DC load (MW) decision for [`HybridHostingCapacityDispatch`](@ref).
-Bounds ``[0, l_{\\text{op,ub}}]`` from the device-model attribute `"l_op_ub"`.
+Scalar operating DC load decision for [`HybridHostingCapacityDispatch`](@ref), in
+**SYSTEM_BASE per-unit** (same basis as `ActivePowerIn` / `ActivePowerOut`).
+Bounds ``[0, l_{\\text{op,ub}}]`` from the device-model attribute `"l_op_ub"` (also SYSTEM_BASE pu).
+Set [`PowerSimulations.convert_result_to_natural_units`](@ref) so `read_variable` returns MW.
 """
 struct LOpVariable <: PSI.VariableType end
 struct BatteryChargeCyclingSlackVariable <: PSI.VariableType end
@@ -218,6 +220,6 @@ struct ComplementarySlackVarCyclingCharge <: MerchantModelComplementarySlackVari
 struct ComplementarySlackVarCyclingDischarge <: MerchantModelComplementarySlackVariable end
 #! format: on
 
-# implement below
-#PSI.convert_result_to_natural_units() = false
+# L_op is stored in SYSTEM_BASE pu; export MW via read_variable / OptimizationProblemResults.
+PSI.convert_result_to_natural_units(::Type{LOpVariable}) = true
 PSI.should_write_resulting_value(::Type{TotalReserve}) = false

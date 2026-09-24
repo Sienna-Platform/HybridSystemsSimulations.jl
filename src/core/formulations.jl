@@ -357,7 +357,7 @@ struct HybridEnergyOnlyDispatch <: AbstractHybridFormulation end
     HybridHostingCapacityDispatch
 
 Device formulation for hosting-capacity studies that maximize a scalar operating DC load
-``L_{\\text{op}}`` (MW) at each hybrid. Must-serve electric load and PCC import/export rating
+``L_{\\text{op}}`` (SYSTEM_BASE pu) at each hybrid. Must-serve electric load and PCC import/export rating
 co-scale with the same decision:
 
 ```text
@@ -367,7 +367,7 @@ P_ld(t) = σ(t) * L_op
 
 where ``σ(t)`` is the normalized `ElectricLoadTimeSeries` shape (build the hybrid electric load
 with `max_active_power = 1.0`). Reservation status uses a big-M with the fixed device-model
-attribute `l_op_ub` (not ``u * L_op``):
+attribute `l_op_ub` (not ``u * L_op``), also in SYSTEM_BASE pu:
 
 ```text
 p_out(t) ≤ L_op
@@ -380,14 +380,14 @@ Load-only hybrids are supported (empty thermal / renewable / storage branches ar
 
 **Required device-model attribute:**
 
-  - `"l_op_ub"` — fixed upper bound on ``L_{\\text{op}}`` used for variable bounds and status big-M
+  - `"l_op_ub"` — fixed upper bound on ``L_{\\text{op}}`` in SYSTEM_BASE pu (variable bounds and status big-M)
 
 **Optional attributes:** same reservation / storage flags as [`HybridEnergyOnlyDispatch`](@ref);
 `"l_dc_anchor"` may be set for reporting only (not used in JuMP).
 
 **Variables:**
 
-  - [`LOpVariable`](@ref): scalar ``L_{\\text{op}} \\in [0, l_{\\text{op,ub}}]`` per hybrid
+  - [`LOpVariable`](@ref): scalar ``L_{\\text{op}} \\in [0, l_{\\text{op,ub}}]`` (SYSTEM_BASE pu) per hybrid
   - PCC in/out and reservation as in [`HybridEnergyOnlyDispatch`](@ref), plus optional asset vars
 
 **Objective:**
