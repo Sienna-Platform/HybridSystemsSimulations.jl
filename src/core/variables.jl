@@ -77,7 +77,7 @@ struct BatteryEnergySurplusVariable <: PSI.VariableType end
 """
     LOpVariable
 
-Scalar operating DC load decision for [`HybridHostingCapacityDispatch`](@ref), in
+Variable for scalar must-serve load maximized by [`HybridHostingCapacityDispatch`](@ref), in
 **SYSTEM_BASE per-unit** (same basis as `ActivePowerIn` / `ActivePowerOut`).
 Bounds ``[0, l_{\\text{op,ub}}]`` from the device-model attribute `"l_op_ub"` (also SYSTEM_BASE pu).
 Set [`PowerSimulations.convert_result_to_natural_units`](@ref) so `read_variable` returns MW.
