@@ -29,6 +29,49 @@ function PSI.add_constraints!(
     return
 end
 
+"""PCC import/export linked to scalar ``L_{\\text{op}}``: ``p_{\\text{in/out}}(t) ≤ L_{\\text{op}}``."""
+function _add_constraints_pcc_lop_limits!(
+    container::PSI.OptimizationContainer,
+    devices::U,
+    model::PSI.DeviceModel{D, HybridHostingCapacityDispatch},
+) where {
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+} where {D <: PSY.HybridSystem}
+    time_steps = PSI.get_time_steps(container)
+    names = [PSY.get_name(d) for d in devices]
+    p_out = PSI.get_variable(container, PSI.ActivePowerOutVariable(), D)
+    p_in = PSI.get_variable(container, PSI.ActivePowerInVariable(), D)
+    l_op = PSI.get_variable(container, LOpVariable(), D)
+    con_out = PSI.add_constraints_container!(
+        container,
+        PSI.OutputActivePowerVariableLimitsConstraint(),
+        D,
+        names,
+        time_steps;
+        meta = "lop",
+    )
+    con_in = PSI.add_constraints_container!(
+        container,
+        PSI.InputActivePowerVariableLimitsConstraint(),
+        D,
+        names,
+        time_steps;
+        meta = "lop",
+    )
+    for device in devices, t in time_steps
+        ci_name = PSY.get_name(device)
+        con_out[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_out[ci_name, t] <= l_op[ci_name]
+        )
+        con_in[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_in[ci_name, t] <= l_op[ci_name]
+        )
+    end
+    return
+end
+
 ############ Output/Input Constraints, HybridSystem ################
 
 # Status Out ON (Generation Operation)
@@ -71,6 +114,33 @@ function PSI.add_constraints!(
     W <: AbstractHybridFormulation,
 } where {D <: PSY.HybridSystem}
     _add_constraints_statusout!(container, T, devices, W())
+    return
+end
+
+# Status Out with big-M `l_op_ub` for hosting capacity (plus separate `p <= L_op`)
+function PSI.add_constraints!(
+    container::PSI.OptimizationContainer,
+    T::Type{<:StatusOutOn},
+    devices::U,
+    model::PSI.DeviceModel{D, HybridHostingCapacityDispatch},
+    network_model::PSI.NetworkModel{<:PM.AbstractPowerModel},
+) where {
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+} where {D <: PSY.HybridSystem}
+    l_op_ub = Float64(PSI.get_attribute(model, "l_op_ub"))
+    time_steps = PSI.get_time_steps(container)
+    names = [PSY.get_name(d) for d in devices]
+    varon = PSI.get_variable(container, PSI.ReservationVariable(), D)
+    p_out = PSI.get_variable(container, PSI.ActivePowerOutVariable(), D)
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    for device in devices, t in time_steps
+        ci_name = PSY.get_name(device)
+        con_ub[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_out[ci_name, t] <= l_op_ub * varon[ci_name, t]
+        )
+    end
     return
 end
 
@@ -207,6 +277,33 @@ function PSI.add_constraints!(
     W <: AbstractHybridFormulation,
 } where {D <: PSY.HybridSystem}
     _add_constraints_statusin!(container, T, devices, W())
+    return
+end
+
+# Status In with big-M `l_op_ub` for hosting capacity (plus separate `p <= L_op`)
+function PSI.add_constraints!(
+    container::PSI.OptimizationContainer,
+    T::Type{<:StatusInOn},
+    devices::U,
+    model::PSI.DeviceModel{D, HybridHostingCapacityDispatch},
+    network_model::PSI.NetworkModel{<:PM.AbstractPowerModel},
+) where {
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+} where {D <: PSY.HybridSystem}
+    l_op_ub = Float64(PSI.get_attribute(model, "l_op_ub"))
+    time_steps = PSI.get_time_steps(container)
+    names = [PSY.get_name(d) for d in devices]
+    varon = PSI.get_variable(container, PSI.ReservationVariable(), D)
+    p_in = PSI.get_variable(container, PSI.ActivePowerInVariable(), D)
+    con_ub =
+        PSI.add_constraints_container!(container, T(), D, names, time_steps; meta = "ub")
+    for device in devices, t in time_steps
+        ci_name = PSY.get_name(device)
+        con_ub[ci_name, t] = JuMP.@constraint(
+            PSI.get_jump_model(container),
+            p_in[ci_name, t] <= l_op_ub * (1.0 - varon[ci_name, t])
+        )
+    end
     return
 end
 
@@ -526,6 +623,77 @@ function PSI.add_constraints!(
     W <: AbstractHybridFormulation,
 } where {D <: PSY.HybridSystem}
     _add_constraints_energyassetbalance!(container, T, devices, W())
+    return
+end
+
+"""Energy balance with must-serve load ``P_{ld}(t) = σ(t) * L_{op}``."""
+function _add_constraints_energyassetbalance_lop!(
+    container::PSI.OptimizationContainer,
+    T::Type{<:EnergyAssetBalance},
+    devices::U,
+) where {
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+} where {D <: PSY.HybridSystem}
+    time_steps = PSI.get_time_steps(container)
+    names = [PSY.get_name(d) for d in devices]
+    p_out = PSI.get_variable(container, PSI.ActivePowerOutVariable(), D)
+    p_in = PSI.get_variable(container, PSI.ActivePowerInVariable(), D)
+    l_op = PSI.get_variable(container, LOpVariable(), D)
+    con_bal = PSI.add_constraints_container!(container, T(), D, names, time_steps)
+
+    for device in devices
+        ci_name = PSY.get_name(device)
+        vars_pos = Set{JUMP_SET_TYPE}()
+        vars_neg = Set{JUMP_SET_TYPE}()
+        sigma = nothing
+
+        if !isnothing(PSY.get_thermal_unit(device))
+            p_th = PSI.get_variable(container, ThermalPower(), D)
+            push!(vars_pos, p_th[ci_name, :])
+        end
+        if !isnothing(PSY.get_renewable_unit(device))
+            p_re = PSI.get_variable(container, RenewablePower(), D)
+            push!(vars_pos, p_re[ci_name, :])
+        end
+        if !isnothing(PSY.get_storage(device))
+            p_ch = PSI.get_variable(container, BatteryCharge(), D)
+            p_ds = PSI.get_variable(container, BatteryDischarge(), D)
+            push!(vars_pos, p_ds[ci_name, :])
+            push!(vars_neg, p_ch[ci_name, :])
+        end
+        if !isnothing(PSY.get_electric_load(device))
+            P = ElectricLoadTimeSeries
+            param_container = PSI.get_parameter(container, P(), D)
+            sigma = PSI.get_parameter_column_refs(param_container, ci_name).data
+        end
+        for t in time_steps
+            total_power = -p_out[ci_name, t] + p_in[ci_name, t]
+            for vp in vars_pos
+                JuMP.add_to_expression!(total_power, vp[t])
+            end
+            for vn in vars_neg
+                JuMP.add_to_expression!(total_power, -vn[t])
+            end
+            if sigma !== nothing
+                JuMP.add_to_expression!(total_power, -sigma[t] * l_op[ci_name])
+            end
+            con_bal[ci_name, t] =
+                JuMP.@constraint(PSI.get_jump_model(container), total_power == 0.0)
+        end
+    end
+    return
+end
+
+function PSI.add_constraints!(
+    container::PSI.OptimizationContainer,
+    T::Type{<:EnergyAssetBalance},
+    devices::U,
+    ::PSI.DeviceModel{D, HybridHostingCapacityDispatch},
+    network_model::PSI.NetworkModel{<:PM.AbstractPowerModel},
+) where {
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+} where {D <: PSY.HybridSystem}
+    _add_constraints_energyassetbalance_lop!(container, T, devices)
     return
 end
 

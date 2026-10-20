@@ -22,6 +22,20 @@ function PSI.get_default_attributes(
     )
 end
 
+function PSI.get_default_attributes(
+    ::Type{PSY.HybridSystem},
+    ::Type{HybridHostingCapacityDispatch},
+)
+    return Dict{String, Any}(
+        "reservation" => true,
+        "storage_reservation" => true,
+        "energy_target" => false,
+        "regularization" => false,
+        "cycling" => false,
+        "l_op_ub" => nothing,
+    )
+end
+
 # Preserve formulation for initial conditions: formulations that support services
 # must be preserved so IC build can handle hybrids with services.
 PSI.get_initial_conditions_device_model(
@@ -32,6 +46,11 @@ PSI.get_initial_conditions_device_model(
 PSI.get_initial_conditions_device_model(
     ::PSI.OperationModel,
     model::PSI.DeviceModel{T, HybridEnergyOnlyDispatch},
+) where {T <: PSY.HybridSystem} = model
+
+PSI.get_initial_conditions_device_model(
+    ::PSI.OperationModel,
+    model::PSI.DeviceModel{T, HybridHostingCapacityDispatch},
 ) where {T <: PSY.HybridSystem} = model
 
 PSI.get_initial_conditions_device_model(
@@ -58,6 +77,12 @@ PSI.get_multiplier_value(
     ::AbstractHybridFormulation,
 ) = PSY.get_max_active_power(PSY.get_electric_load(device))
 
+PSI.get_multiplier_value(
+    ::ElectricLoadTimeSeries,
+    ::PSY.HybridSystem,
+    ::HybridHostingCapacityDispatch,
+) = 1.0
+
 ############## PSI.ActivePowerInVariable, HybridSystem ####################
 
 PSI.get_variable_binary(
@@ -75,6 +100,12 @@ PSI.get_variable_upper_bound(
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
 ) = PSY.get_input_active_power_limits(d).max
+# Hosting-capacity: do not freeze a fixed PCC MW cap; link to L_op in constraints.
+PSI.get_variable_upper_bound(
+    ::PSI.ActivePowerInVariable,
+    ::PSY.HybridSystem,
+    ::HybridHostingCapacityDispatch,
+) = nothing
 PSI.get_variable_multiplier(
     ::PSI.ActivePowerInVariable,
     ::Type{<:PSY.HybridSystem},
@@ -98,6 +129,12 @@ PSI.get_variable_upper_bound(
     d::PSY.HybridSystem,
     ::AbstractHybridFormulation,
 ) = PSY.get_output_active_power_limits(d).max
+
+PSI.get_variable_upper_bound(
+    ::PSI.ActivePowerOutVariable,
+    ::PSY.HybridSystem,
+    ::HybridHostingCapacityDispatch,
+) = nothing
 
 PSI.get_variable_lower_bound(
     ::PSI.ActivePowerOutVariable,
@@ -405,13 +442,23 @@ PSI.get_variable_multiplier(
 PSI.get_parameter_multiplier(
     ::PSI.FixValueParameter,
     ::PSY.HybridSystem,
-    ::Union{HybridFixedDA, HybridEnergyOnlyDispatch, HybridDispatchWithReserves},
+    ::Union{
+        HybridFixedDA,
+        HybridEnergyOnlyDispatch,
+        HybridHostingCapacityDispatch,
+        HybridDispatchWithReserves,
+    },
 ) = 1.0
 
 PSI.get_parameter_multiplier(
     ::Union{CyclingDischargeLimitParameter, CyclingChargeLimitParameter},
     ::PSY.HybridSystem,
-    ::Union{HybridFixedDA, HybridEnergyOnlyDispatch, HybridDispatchWithReserves},
+    ::Union{
+        HybridFixedDA,
+        HybridEnergyOnlyDispatch,
+        HybridHostingCapacityDispatch,
+        HybridDispatchWithReserves,
+    },
 ) = 1.0
 
 PSI.get_initial_parameter_value(
