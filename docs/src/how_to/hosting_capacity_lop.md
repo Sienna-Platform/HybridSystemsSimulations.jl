@@ -29,16 +29,16 @@ fixed while load and PCC limits move with ``L_{\mathrm{op}}``.
 
 ## Prerequisites
 
-- A [`PowerSystems.System`](@extref) with time series covering the decision
-  horizon (this walkthrough uses the modified RTS-GMLC DA system from
-  [`PowerSystemCaseBuilder.jl`](https://github.com/Sienna-Platform/PowerSystemCaseBuilder.jl)).
-- An MIP-capable solver (this walkthrough uses [HiGHS](https://jump.dev/JuMP.jl/stable/packages/solvers/#HiGHS.jl)).
-- Device-model attribute `"l_op_ub"` in **SYSTEM_BASE pu** (typically
-  `base_power` ``= 100`` MW → ``50`` MW is ``0.5`` pu).
-- Zero renewable curtailment cost when ``L_{\mathrm{op}}`` must dominate the
-  objective. [PowerSimulations.jl](https://sienna-platform.github.io/PowerSimulations.jl/stable/)
-  minimizes cost; the formulation adds a negative unit benefit on
-  ``L_{\mathrm{op}}``, so nonzero curtailment cost can undercut that term.
+  - A [`PowerSystems.System`](@extref) with time series covering the decision
+    horizon (this walkthrough uses the modified RTS-GMLC DA system from
+    [`PowerSystemCaseBuilder.jl`](https://github.com/Sienna-Platform/PowerSystemCaseBuilder.jl)).
+  - An MIP-capable solver (this walkthrough uses [HiGHS](https://jump.dev/JuMP.jl/stable/packages/solvers/#HiGHS.jl)).
+  - Device-model attribute `"l_op_ub"` in **SYSTEM_BASE pu** (typically
+    `base_power` ``= 100`` MW → ``50`` MW is ``0.5`` pu).
+  - Zero renewable curtailment cost when ``L_{\mathrm{op}}`` must dominate the
+    objective. [PowerSimulations.jl](https://sienna-platform.github.io/PowerSimulations.jl/stable/)
+    minimizes cost; the formulation adds a negative unit benefit on
+    ``L_{\mathrm{op}}``, so nonzero curtailment cost can undercut that term.
 
 ## Co-located hybrid walkthrough
 

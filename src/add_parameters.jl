@@ -212,7 +212,8 @@ function _add_time_series_parameters(
     for device in devices
         name = PSY.get_name(device)
         multiplier =
-            if formulation isa HybridHostingCapacityDispatch && param isa ElectricLoadTimeSeries
+            if formulation isa HybridHostingCapacityDispatch &&
+               param isa ElectricLoadTimeSeries
                 _get_hybrid_ts_multiplier(param, device, formulation)
             else
                 _get_hybrid_ts_multiplier(param, device)

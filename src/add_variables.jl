@@ -310,7 +310,8 @@ function PSI.add_variables!(
     )
     ub = Float64(l_op_ub)
     ub >= 0.0 || error("l_op_ub must be non-negative; got $ub")
-    variable = PSI.add_variable_container!(container, LOpVariable(), U, PSY.get_name.(devices))
+    variable =
+        PSI.add_variable_container!(container, LOpVariable(), U, PSY.get_name.(devices))
     for d in devices
         name = PSY.get_name(d)
         variable[name] = JuMP.@variable(
