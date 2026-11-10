@@ -277,6 +277,224 @@ function PSI.construct_device!(
 end
 
 ###################################################################
+###### Argument Constructor for Hybrid Hosting Capacity (L_op) ####
+###################################################################
+function PSI.construct_device!(
+    container::PSI.OptimizationContainer,
+    sys::PSY.System,
+    ::PSI.ArgumentConstructStage,
+    model::PSI.DeviceModel{T, D},
+    network_model::PSI.NetworkModel{S},
+) where {
+    T <: PSY.HybridSystem,
+    D <: HybridHostingCapacityDispatch,
+    S <: PM.AbstractPowerModel,
+}
+    devices = PSI.get_available_components(model, sys)
+    PSI.add_variables!(container, LOpVariable, devices, model)
+    PSI.add_variables!(container, PSI.ActivePowerOutVariable, devices, D())
+    PSI.add_variables!(container, PSI.ActivePowerInVariable, devices, D())
+    PSI.add_variables!(container, PSI.ReservationVariable, devices, D())
+
+    PSI.add_to_expression!(
+        container,
+        PSI.ActivePowerBalance,
+        PSI.ActivePowerInVariable,
+        devices,
+        model,
+        network_model,
+    )
+    PSI.add_to_expression!(
+        container,
+        PSI.ActivePowerBalance,
+        PSI.ActivePowerOutVariable,
+        devices,
+        model,
+        network_model,
+    )
+
+    if PSI.has_service_model(model)
+        error("Services are not supported by $D")
+    end
+
+    _hybrids_with_thermal = [d for d in devices if PSY.get_thermal_unit(d) !== nothing]
+    _hybrids_with_renewable = [d for d in devices if PSY.get_renewable_unit(d) !== nothing]
+    _hybrids_with_storage = [d for d in devices if PSY.get_storage(d) !== nothing]
+    _hybrids_with_loads = [d for d in devices if PSY.get_electric_load(d) !== nothing]
+
+    if !isempty(_hybrids_with_thermal)
+        PSI.add_variables!(container, ThermalPower, _hybrids_with_thermal, D())
+        PSI.add_variables!(container, PSI.OnVariable, _hybrids_with_thermal, D())
+    end
+    if !isempty(_hybrids_with_renewable)
+        PSI.add_variables!(container, RenewablePower, _hybrids_with_renewable, D())
+    end
+    if !isempty(_hybrids_with_storage)
+        PSI.add_variables!(container, BatteryCharge, _hybrids_with_storage, D())
+        PSI.add_variables!(container, BatteryDischarge, _hybrids_with_storage, D())
+        PSI.add_variables!(container, PSI.EnergyVariable, _hybrids_with_storage, D())
+        PSI.add_variables!(container, BatteryStatus, _hybrids_with_storage, D())
+        PSI.add_variables!(container, CyclingChargeUsage, _hybrids_with_storage, D())
+        PSI.add_variables!(container, CyclingDischargeUsage, _hybrids_with_storage, D())
+        if something(PSI.get_attribute(model, "energy_target"), false)
+            PSI.add_variables!(
+                container,
+                BatteryEnergyShortageVariable,
+                _hybrids_with_storage,
+                D(),
+            )
+            PSI.add_variables!(
+                container,
+                BatteryEnergySurplusVariable,
+                _hybrids_with_storage,
+                D(),
+            )
+        end
+        if something(PSI.get_attribute(model, "regularization"), false)
+            PSI.add_variables!(container, ChargeRegularizationVariable, devices, D())
+            PSI.add_variables!(container, DischargeRegularizationVariable, devices, D())
+        end
+        PSI.initial_conditions!(container, _hybrids_with_storage, D())
+    end
+
+    if !isempty(_hybrids_with_renewable)
+        PSI.add_parameters!(
+            container,
+            RenewablePowerTimeSeries,
+            _hybrids_with_renewable,
+            model,
+        )
+    end
+    if !isempty(_hybrids_with_loads)
+        PSI.add_parameters!(container, ElectricLoadTimeSeries, _hybrids_with_loads, model)
+    end
+
+    PSI.add_feedforward_arguments!(container, model, devices)
+    PSI.objective_function!(container, devices, model, network_model)
+    return
+end
+
+###################################################################
+####### Model Constructor for Hybrid Hosting Capacity (L_op) ######
+###################################################################
+function PSI.construct_device!(
+    container::PSI.OptimizationContainer,
+    sys::PSY.System,
+    ::PSI.ModelConstructStage,
+    model::PSI.DeviceModel{T, D},
+    network_model::PSI.NetworkModel{S},
+) where {
+    T <: PSY.HybridSystem,
+    D <: HybridHostingCapacityDispatch,
+    S <: PM.AbstractActivePowerModel,
+}
+    devices = PSI.get_available_components(model, sys)
+
+    # Custom PCC limits: p <= L_op (skip stock fixed-MW range constraints)
+    _add_constraints_pcc_lop_limits!(container, devices, model)
+    PSI.add_constraints!(container, StatusOutOn, devices, model, network_model)
+    PSI.add_constraints!(container, StatusInOn, devices, model, network_model)
+    PSI.add_constraints!(container, EnergyAssetBalance, devices, model, network_model)
+
+    _hybrids_with_thermal = [d for d in devices if PSY.get_thermal_unit(d) !== nothing]
+    _hybrids_with_renewable = [d for d in devices if PSY.get_renewable_unit(d) !== nothing]
+    _hybrids_with_storage = [d for d in devices if PSY.get_storage(d) !== nothing]
+
+    if !isempty(_hybrids_with_thermal)
+        PSI.add_constraints!(
+            container,
+            ThermalOnVariableUb,
+            _hybrids_with_thermal,
+            model,
+            network_model,
+        )
+        PSI.add_constraints!(
+            container,
+            ThermalOnVariableLb,
+            _hybrids_with_thermal,
+            model,
+            network_model,
+        )
+    end
+    if !isempty(_hybrids_with_storage)
+        PSI.add_constraints!(
+            container,
+            BatteryStatusChargeOn,
+            _hybrids_with_storage,
+            model,
+            network_model,
+        )
+        PSI.add_constraints!(
+            container,
+            BatteryStatusDischargeOn,
+            _hybrids_with_storage,
+            model,
+            network_model,
+        )
+        PSI.add_constraints!(
+            container,
+            BatteryBalance,
+            _hybrids_with_storage,
+            model,
+            network_model,
+        )
+        if something(PSI.get_attribute(model, "cycling"), false)
+            PSI.add_constraints!(
+                container,
+                CyclingCharge,
+                _hybrids_with_storage,
+                model,
+                network_model,
+            )
+            PSI.add_constraints!(
+                container,
+                CyclingDischarge,
+                _hybrids_with_storage,
+                model,
+                network_model,
+            )
+        end
+        if something(PSI.get_attribute(model, "energy_target"), false)
+            PSI.add_constraints!(
+                container,
+                StateofChargeTargetConstraint,
+                _hybrids_with_storage,
+                model,
+                network_model,
+            )
+        end
+        if something(PSI.get_attribute(model, "regularization"), false)
+            PSI.add_constraints!(
+                container,
+                ChargeRegularizationConstraint,
+                _hybrids_with_storage,
+                model,
+                network_model,
+            )
+            PSI.add_constraints!(
+                container,
+                DischargeRegularizationConstraint,
+                _hybrids_with_storage,
+                model,
+                network_model,
+            )
+        end
+    end
+    if !isempty(_hybrids_with_renewable)
+        PSI.add_constraints!(
+            container,
+            RenewableActivePowerLimitConstraint,
+            _hybrids_with_renewable,
+            model,
+            network_model,
+        )
+    end
+
+    PSI.add_feedforward_constraints!(container, model, devices)
+    return
+end
+
+###################################################################
 ########## Argument Constructor for Hybrid with Reserves  #########
 ###################################################################
 function PSI.construct_device!(

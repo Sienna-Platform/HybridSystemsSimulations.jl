@@ -26,6 +26,7 @@ commitment or economic dispatch.
 ```@docs
 HybridDispatchWithReserves
 HybridEnergyOnlyDispatch
+HybridHostingCapacityDispatch
 HybridFixedDA
 ```
 
@@ -84,6 +85,7 @@ Reserve quantities allocated to the hybrid's internal assets and total reserve.
 ReserveVariableOut
 ReserveVariableIn
 TotalReserve
+LOpVariable
 ```
 
 ```@raw html

@@ -432,6 +432,23 @@ end
 function PSI.objective_function!(
     container::PSI.OptimizationContainer,
     devices::U,
+    model::PSI.DeviceModel{D, HybridHostingCapacityDispatch},
+    ::PSI.NetworkModel{<:PM.AbstractPowerModel},
+) where {
+    U <: Union{Vector{D}, IS.FlattenIteratorWrapper{D}},
+} where {D <: PSY.HybridSystem}
+    # Maximize L_op under PSI's minimize convention.
+    variable = PSI.get_variable(container, LOpVariable(), D)
+    for d in devices
+        name = PSY.get_name(d)
+        PSI.add_to_objective_invariant_expression!(container, -variable[name])
+    end
+    return
+end
+
+function PSI.objective_function!(
+    container::PSI.OptimizationContainer,
+    devices::U,
     model::PSI.DeviceModel{D, W},
     ::PSI.NetworkModel{<:PM.AbstractPowerModel},
 ) where {

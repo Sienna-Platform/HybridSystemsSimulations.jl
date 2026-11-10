@@ -17,6 +17,9 @@ make_tutorials()
 pages = OrderedDict(
     "Welcome Page" => "index.md",
     # "Tutorials" => Any[],
+    "How to..." => Any[
+        "Calculate hosting capacity for a hybrid system" => "how_to/hosting_capacity_lop.md",
+    ],
     "Reference" => Any[
         "Public API" => "api/public.md",
         "Internals" => "api/internal.md",

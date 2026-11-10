@@ -296,3 +296,30 @@ function PSI.add_variables!(
     end
     return
 end
+
+function PSI.add_variables!(
+    container::PSI.OptimizationContainer,
+    ::Type{LOpVariable},
+    devices::Union{Vector{U}, IS.FlattenIteratorWrapper{U}},
+    model::PSI.DeviceModel{U, HybridHostingCapacityDispatch},
+) where {U <: PSY.HybridSystem}
+    @assert !isempty(devices)
+    l_op_ub = PSI.get_attribute(model, "l_op_ub")
+    l_op_ub === nothing && error(
+        "HybridHostingCapacityDispatch requires device-model attribute \"l_op_ub\"",
+    )
+    ub = Float64(l_op_ub)
+    ub >= 0.0 || error("l_op_ub must be non-negative; got $ub")
+    variable =
+        PSI.add_variable_container!(container, LOpVariable(), U, PSY.get_name.(devices))
+    for d in devices
+        name = PSY.get_name(d)
+        variable[name] = JuMP.@variable(
+            PSI.get_jump_model(container),
+            base_name = "LOpVariable_{$(name)}",
+            lower_bound = 0.0,
+            upper_bound = ub,
+        )
+    end
+    return
+end
