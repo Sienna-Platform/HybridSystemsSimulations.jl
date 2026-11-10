@@ -32,6 +32,53 @@
 
     build_out = PSI.build!(m; output_dir = mktempdir(; cleanup = true))
     @test build_out == PSI.ModelBuildStatus.BUILT
+
+    container = PSI.get_optimization_container(m)
+    hybrid_name = PSY.get_name(hybrid)
+    l_op = PSI.get_variable(container, LOpVariable(), PSY.HybridSystem)[hybrid_name]
+    tracks_l_op(constraints) = any(
+        !iszero(JuMP.normalized_coefficient(constraint, l_op)) for
+        constraint in constraints
+    )
+    @test tracks_l_op(
+        PSI.get_constraint(
+            container,
+            HSS.RenewableActivePowerLimitConstraint(),
+            PSY.HybridSystem,
+            "lop",
+        ),
+    )
+    @test tracks_l_op(
+        PSI.get_constraint(container, HSS.ThermalOnVariableUb(), PSY.HybridSystem, "lop"),
+    )
+    @test tracks_l_op(
+        PSI.get_constraint(
+            container,
+            HSS.BatteryStatusChargeOn(),
+            PSY.HybridSystem,
+            "lop",
+        ),
+    )
+    @test tracks_l_op(
+        PSI.get_constraint(
+            container,
+            HSS.BatteryStatusDischargeOn(),
+            PSY.HybridSystem,
+            "lop",
+        ),
+    )
+    @test tracks_l_op(
+        PSI.get_constraint(
+            container,
+            HSS.BatteryBalance(),
+            PSY.HybridSystem,
+            "energy_ub",
+        ),
+    )
+    @test tracks_l_op(
+        PSI.get_constraint(container, HSS.BatteryBalance(), PSY.HybridSystem),
+    )
+
     solve_out = PSI.solve!(m)
     @test solve_out == PSI.RunStatus.SUCCESSFULLY_FINALIZED
 

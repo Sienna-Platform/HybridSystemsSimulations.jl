@@ -357,12 +357,17 @@ struct HybridEnergyOnlyDispatch <: AbstractHybridFormulation end
     HybridHostingCapacityDispatch
 
 Device formulation for hosting-capacity studies that maximize a scalar operating DC load
-``L_{\\text{op}}`` (SYSTEM_BASE pu) at each hybrid. Must-serve electric load and PCC import/export rating
-co-scale with the same decision:
+``L_{\\text{op}}`` (SYSTEM_BASE pu) at each hybrid. Must-serve electric load, PCC
+import/export rating, and onsite asset capacities co-scale with the same decision. PSY
+subcomponent nameplates are fixed envelopes built at ``L_{\\text{op,ub}}``:
 
 ```text
 P_ld(t) = σ(t) * L_op
 0 ≤ p_in(t), p_out(t) ≤ L_op
+p_re(t) ≤ σ_re(t) * (P_re,max / l_op_ub) * L_op
+p_th(t) ≤ (P_th,max / l_op_ub) * L_op
+p_ch/ds(t) ≤ (P_ch/ds,max / l_op_ub) * L_op
+s_min * (E_max / l_op_ub) * L_op ≤ e(t) ≤ s_max * (E_max / l_op_ub) * L_op
 ```
 
 where ``σ(t)`` is the normalized `ElectricLoadTimeSeries` shape (build the hybrid electric load
@@ -375,6 +380,11 @@ p_out(t) ≤ u(t) * l_op_ub
 p_in(t)  ≤ L_op
 p_in(t)  ≤ (1 - u(t)) * l_op_ub
 ```
+
+Thermal and storage status constraints retain the fixed envelope nameplates as linear
+big-M values. Storage initial energy also co-scales:
+``e_0 = s_0 (E_max / l_op_ub) L_op``. These are available-capacity limits; asset
+dispatch remains free within them.
 
 Load-only hybrids are supported (empty thermal / renewable / storage branches are skipped).
 

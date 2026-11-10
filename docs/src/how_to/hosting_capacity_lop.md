@@ -15,17 +15,22 @@ candidate bus and want a single unit commitment / economic-dispatch solve that
 [`PowerSystems.HybridSystem`](@extref) at that bus. The optimal value
 ``L_{\mathrm{op}}^*`` is reported in MW via [`LOpVariable`](@ref).
 
-Must-serve electric load and PCC import/export rating co-scale with the same
-decision (see the [`HybridHostingCapacityDispatch`](@ref) docstring):
+Must-serve electric load, PCC import/export rating, and onsite asset capacities
+co-scale with the same decision (see the
+[`HybridHostingCapacityDispatch`](@ref) docstring):
 
 ```text
 P_ld(t) = σ(t) * L_op
 0 ≤ p_in(t), p_out(t) ≤ L_op
+C_asset(L_op) = (C_asset,envelope / l_op_ub) * L_op
 ```
 
 with reservation status using the fixed device-model attribute `"l_op_ub"`
-(not ``u \cdot L_{\mathrm{op}}``). Onsite generation and storage nameplates stay
-fixed while load and PCC limits move with ``L_{\mathrm{op}}``.
+(not ``u \cdot L_{\mathrm{op}}``). PSY renewable, thermal, and storage nameplates
+are envelopes at ``L_{\mathrm{op,ub}}``; dispatch remains free within the
+co-scaled capacities. Thermal/storage status constraints use the fixed envelope
+as a linear big-M. Storage energy bounds and initial SOC co-scale with
+``L_{\mathrm{op}}`` as well.
 
 ## Prerequisites
 
@@ -45,8 +50,9 @@ fixed while load and PCC limits move with ``L_{\mathrm{op}}``.
 Wind, combined-cycle gas,
 [`EnergyReservoirStorage`](@extref PowerSystems :label:`EnergyReservoirStorage`),
 and a [`PowerSystems.PowerLoad`](@extref) behind one PCC at bus `"Chuhsi"` on the
-modified RTS-GMLC DA system. Nameplates for onsite renewable / thermal / storage
-are **fixed**. Electric load and PCC limits co-scale with ``L_{\mathrm{op}}``.
+modified RTS-GMLC DA system. Onsite renewable / thermal / storage nameplates
+define the envelopes available at ``L_{\mathrm{op,ub}}``; their effective
+capacities, electric load, and PCC limits co-scale with ``L_{\mathrm{op}}``.
 The walkthrough reuses the existing Clark load from the RTS case (unit-normalized
 ``\sigma(t)``; see [`HybridHostingCapacityDispatch`](@ref)).
 
