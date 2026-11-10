@@ -357,7 +357,7 @@ struct HybridEnergyOnlyDispatch <: AbstractHybridFormulation end
     HybridHostingCapacityDispatch
 
 Device formulation for hosting-capacity studies that maximize a scalar operating DC load
-``L_{\\text{op}}`` (SYSTEM_BASE pu) at each hybrid. Must-serve electric load, PCC
+``L_{\\text{op}}`` (`SYSTEM_BASE` pu) at each hybrid. Must-serve electric load, PCC
 import/export rating, and onsite asset capacities co-scale with the same decision. PSY
 subcomponent nameplates are fixed envelopes built at ``L_{\\text{op,ub}}``:
 
@@ -372,7 +372,7 @@ s_min * (E_max / l_op_ub) * L_op ≤ e(t) ≤ s_max * (E_max / l_op_ub) * L_op
 
 where ``σ(t)`` is the normalized `ElectricLoadTimeSeries` shape (build the hybrid electric load
 with `max_active_power = 1.0`). Reservation status uses a big-M with the fixed device-model
-attribute `l_op_ub` (not ``u * L_op``), also in SYSTEM_BASE pu:
+attribute `l_op_ub` (not ``u * L_op``), also in `SYSTEM_BASE` pu:
 
 ```text
 p_out(t) ≤ L_op
